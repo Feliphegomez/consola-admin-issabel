@@ -1,0 +1,10 @@
+{
+  "version": "0.2.0",
+  "download_url": "https://releases.demedallo.com/consola-admin-issabel/0.2.0/ConsolaAdminIssabel-0.2.0.exe",
+  "zip_url": "https://releases.demedallo.com/consola-admin-issabel/0.2.0/ConsolaAdminIssabel-0.2.0.zip",
+  "notes": "--- 0.2.0 ---\n- Consola supervisor Issabel (JavaFX, ECCP puerto 20005).\n- Pestañas: Agentes, Colas y campañas, Llamadas activas (polling 5 s).\n- Métricas del día, pausas, detalle de llamada activa.\n- Escuchar llamada: AMI Originate + código escucha (por defecto 555 + extensión agente, sin *).\n- Login: extensión supervisor, AMI (manager.conf originate), tecnología SIP/PJSIP.\n- Instalador Windows jpackage/WiX.\n\nEN: Supervisor ECCP console; agent/queue/active-call tabs; AMI listen (555+ext); Windows installer.\n\nFill sha256 after upload to releases.demedallo.com.",
+  "sha256": {
+    "exe": "",
+    "zip": ""
+  }
+}

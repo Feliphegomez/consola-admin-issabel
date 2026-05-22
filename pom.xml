@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>dn.demedallo</groupId>
+    <artifactId>native-admin-console</artifactId>
+    <version>0.2.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+    <name>Issabel native admin console (ECCP)</name>
+    <description>Desktop JavaFX client for Issabel call center supervisor monitoring via ECCP.</description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>21</maven.compiler.release>
+        <javafx.version>21.0.5</javafx.version>
+        <main.class>dn.demedallo.admin.ui.AdminConsoleApp</main.class>
+        <jpackage.app.name>ConsolaAdminIssabel</jpackage.app.name>
+        <jpackage.app.version>0.2.0</jpackage.app.version>
+        <jpackage.icon>${project.basedir}/branding/app.ico</jpackage.icon>
+        <jpackage.lib.dir>${project.build.directory}/jpackage-lib</jpackage.lib.dir>
+        <jpackage.out.parent>${project.build.directory}/jpackage-image</jpackage.out.parent>
+        <jpackage.setup.parent>${project.build.directory}/jpackage-setup</jpackage.setup.parent>
+        <wix.toolset.home>${project.build.directory}/wix-toolset-3.11</wix.toolset.home>
+        <wix.download.zip>${project.build.directory}/demedallo-wix311-binaries.zip</wix.download.zip>
+        <jpackage.executable>${java.home}/bin/jpackage${jpackage.exe.suffix}</jpackage.executable>
+        <jpackage.exe.suffix/>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <release>${maven.compiler.release}</release>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>${main.class}</mainClass>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.2</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>${main.class}</mainClass>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                        </manifest>
+                        <manifestEntries>
+                            <Implementation-Version>${jpackage.app.version}</Implementation-Version>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>jpackage</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <version>3.8.1</version>
+                        <executions>
+                            <execution>
+                                <id>jpackage-copy-deps</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>copy-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>${jpackage.lib.dir}</outputDirectory>
+                                    <includeScope>runtime</includeScope>
+                                    <overWriteReleases>true</overWriteReleases>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-resources-plugin</artifactId>
+                        <version>3.3.1</version>
+                        <executions>
+                            <execution>
+                                <id>jpackage-copy-app-jar</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>copy-resources</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>${jpackage.lib.dir}</outputDirectory>
+                                    <overwrite>true</overwrite>
+                                    <resources>
+                                        <resource>
+                                            <directory>${project.build.directory}</directory>
+                                            <includes>
+                                                <include>${project.build.finalName}.jar</include>
+                                            </includes>
+                                        </resource>
+                                    </resources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>jpackage-app-image-and-zip</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <delete dir="${jpackage.out.parent}/${jpackage.app.name}" quiet="true" failonerror="false"/>
+                                        <delete dir="${jpackage.out.parent}" quiet="true" failonerror="false"/>
+                                        <exec executable="${jpackage.executable}" failonerror="true">
+                                            <arg value="--type"/>
+                                            <arg value="app-image"/>
+                                            <arg value="--dest"/>
+                                            <arg value="${jpackage.out.parent}"/>
+                                            <arg value="--name"/>
+                                            <arg value="${jpackage.app.name}"/>
+                                            <arg value="--app-version"/>
+                                            <arg value="${jpackage.app.version}"/>
+                                            <arg value="--vendor"/>
+                                            <arg value="demedallo"/>
+                                            <arg value="--icon"/>
+                                            <arg value="${jpackage.icon}"/>
+                                            <arg value="--module-path"/>
+                                            <arg value="${jpackage.lib.dir}"/>
+                                            <arg value="--module"/>
+                                            <arg value="dn.demedallo.admin/dn.demedallo.admin.ui.AdminConsoleApp"/>
+                                        </exec>
+                                        <zip destfile="${project.build.directory}/${jpackage.app.name}-${jpackage.app.version}.zip"
+                                             level="6">
+                                            <fileset dir="${jpackage.out.parent}" includes="${jpackage.app.name}/**"/>
+                                        </zip>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>jpackage-installer</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>jpackage-bootstrap-wix</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <mkdir dir="${wix.toolset.home}"/>
+                                        <get src="https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip"
+                                             dest="${wix.download.zip}"
+                                             usetimestamp="true"/>
+                                        <unzip src="${wix.download.zip}"
+                                               dest="${wix.toolset.home}"
+                                               overwrite="true"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>jpackage-remove-old-setup</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <delete dir="${jpackage.setup.parent}" quiet="true"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.5.0</version>
+                        <executions>
+                            <execution>
+                                <id>jpackage-win-setup</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <environmentVariables>
+                                        <JAVA_HOME>${java.home}</JAVA_HOME>
+                                        <WIX_TOOLSET_HOME>${wix.toolset.home}</WIX_TOOLSET_HOME>
+                                    </environmentVariables>
+                                    <executable>cmd.exe</executable>
+                                    <arguments>
+                                        <argument>/c</argument>
+                                        <argument>${project.basedir}\build\jpackage-with-wix.cmd</argument>
+                                        <argument>--type</argument>
+                                        <argument>exe</argument>
+                                        <argument>--dest</argument>
+                                        <argument>${jpackage.setup.parent}</argument>
+                                        <argument>--name</argument>
+                                        <argument>${jpackage.app.name}</argument>
+                                        <argument>--app-version</argument>
+                                        <argument>${jpackage.app.version}</argument>
+                                        <argument>--vendor</argument>
+                                        <argument>demedallo</argument>
+                                        <argument>--icon</argument>
+                                        <argument>${jpackage.icon}</argument>
+                                        <argument>--win-shortcut</argument>
+                                        <argument>--win-menu</argument>
+                                        <argument>--module-path</argument>
+                                        <argument>${jpackage.lib.dir}</argument>
+                                        <argument>--module</argument>
+                                        <argument>dn.demedallo.admin/dn.demedallo.admin.ui.AdminConsoleApp</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>windows-jpackage-exe</id>
+            <activation>
+                <os>
+                    <family>windows</family>
+                </os>
+            </activation>
+            <properties>
+                <jpackage.exe.suffix>.exe</jpackage.exe.suffix>
+            </properties>
+        </profile>
+    </profiles>
+</project>
