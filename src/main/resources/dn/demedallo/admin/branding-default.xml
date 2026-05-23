@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Default branding (embedded in JAR). To customize:
+
+  Option A — image only:
+    Place branding.xml and logo (e.g. logo.png) next to ConsolaAdminIssabel.exe, or:
+
+    java -Ddn.demedallo.admin.branding.file=C:\path\mi-marca.xml -jar ...
+
+  Option B — full XML:
+    Copy this file, edit texts and logo path attribute. Paths:
+    - Relative: folder of the XML file
+    - Absolute: e.g. C:/marca/logo.png
+    - Classpath (embedded only): classpath:dn/demedallo/admin/mi-logo.png
+-->
+<branding>
+    <company>deMedallo.com</company>
+    <title>Consola administración</title>
+    <tagline>Contacto: fg@demedallo.com · Supervisor ECCP · Issabel</tagline>
+    <logo path="logo.png"/>
+</branding>

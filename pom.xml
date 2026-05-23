@@ -6,7 +6,7 @@
 
     <groupId>dn.demedallo</groupId>
     <artifactId>native-admin-console</artifactId>
-    <version>0.2.0-SNAPSHOT</version>
+    <version>0.3.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>Issabel native admin console (ECCP)</name>
     <description>Desktop JavaFX client for Issabel call center supervisor monitoring via ECCP.</description>
@@ -16,12 +16,17 @@
         <maven.compiler.release>21</maven.compiler.release>
         <javafx.version>21.0.5</javafx.version>
         <main.class>dn.demedallo.admin.ui.AdminConsoleApp</main.class>
+        <!-- jpackage (profile -Pjpackage): .exe name and output under target/ -->
         <jpackage.app.name>ConsolaAdminIssabel</jpackage.app.name>
-        <jpackage.app.version>0.2.0</jpackage.app.version>
+        <jpackage.app.version>0.3.0</jpackage.app.version>
         <jpackage.icon>${project.basedir}/branding/app.ico</jpackage.icon>
         <jpackage.lib.dir>${project.build.directory}/jpackage-lib</jpackage.lib.dir>
+        <!-- jpackage outputs under target/ (not %TEMP%) -->
         <jpackage.out.parent>${project.build.directory}/jpackage-image</jpackage.out.parent>
         <jpackage.setup.parent>${project.build.directory}/jpackage-setup</jpackage.setup.parent>
+        <javafx.module.path>${project.build.directory}/javafx-module-path</javafx.module.path>
+        <!-- JDK modules embedded by jlink (java.sql required for MariaDB; see module-info.java) -->
+        <jpackage.runtime.modules>javafx.controls,javafx.graphics,javafx.base,java.desktop,java.sql,java.prefs,java.xml,java.net.http,java.naming,java.logging</jpackage.runtime.modules>
         <wix.toolset.home>${project.build.directory}/wix-toolset-3.11</wix.toolset.home>
         <wix.download.zip>${project.build.directory}/demedallo-wix311-binaries.zip</wix.download.zip>
         <jpackage.executable>${java.home}/bin/jpackage${jpackage.exe.suffix}</jpackage.executable>
@@ -34,9 +39,50 @@
             <artifactId>javafx-controls</artifactId>
             <version>${javafx.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-graphics</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mariadb.jdbc</groupId>
+            <artifactId>mariadb-java-client</artifactId>
+            <version>3.4.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.mwiede</groupId>
+            <artifactId>jsch</artifactId>
+            <version>0.2.23</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.3.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.librepdf</groupId>
+            <artifactId>openpdf</artifactId>
+            <version>2.0.3</version>
+        </dependency>
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <excludes>
+                    <exclude>META-INF/demedallo-admin-build.properties</exclude>
+                </excludes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>META-INF/demedallo-admin-build.properties</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -51,7 +97,7 @@
                 <artifactId>javafx-maven-plugin</artifactId>
                 <version>0.0.8</version>
                 <configuration>
-                    <mainClass>${main.class}</mainClass>
+                    <mainClass>dn.demedallo.admin/dn.demedallo.admin.ui.AdminConsoleApp</mainClass>
                 </configuration>
             </plugin>
             <plugin>
@@ -74,6 +120,7 @@
     </build>
 
     <profiles>
+        <!-- Native package (portable folder + .exe + JRE). JDK 21+ with jpackage. -->
         <profile>
             <id>jpackage</id>
             <build>
@@ -93,6 +140,7 @@
                                     <outputDirectory>${jpackage.lib.dir}</outputDirectory>
                                     <includeScope>runtime</includeScope>
                                     <overWriteReleases>true</overWriteReleases>
+                                    <overWriteSnapshots>true</overWriteSnapshots>
                                 </configuration>
                             </execution>
                         </executions>
@@ -136,6 +184,11 @@
                                 </goals>
                                 <configuration>
                                     <target>
+                                        <delete dir="${javafx.module.path}" quiet="true" failonerror="false"/>
+                                        <mkdir dir="${javafx.module.path}"/>
+                                        <copy todir="${javafx.module.path}" flatten="true" overwrite="true">
+                                            <fileset dir="${jpackage.lib.dir}" includes="javafx-*.jar"/>
+                                        </copy>
                                         <delete dir="${jpackage.out.parent}/${jpackage.app.name}" quiet="true" failonerror="false"/>
                                         <delete dir="${jpackage.out.parent}" quiet="true" failonerror="false"/>
                                         <exec executable="${jpackage.executable}" failonerror="true">
@@ -152,9 +205,15 @@
                                             <arg value="--icon"/>
                                             <arg value="${jpackage.icon}"/>
                                             <arg value="--module-path"/>
+                                            <arg value="${javafx.module.path}"/>
+                                            <arg value="--add-modules"/>
+                                            <arg value="${jpackage.runtime.modules}"/>
+                                            <arg value="--input"/>
                                             <arg value="${jpackage.lib.dir}"/>
-                                            <arg value="--module"/>
-                                            <arg value="dn.demedallo.admin/dn.demedallo.admin.ui.AdminConsoleApp"/>
+                                            <arg value="--main-jar"/>
+                                            <arg value="${project.build.finalName}.jar"/>
+                                            <arg value="--main-class"/>
+                                            <arg value="${main.class}"/>
                                         </exec>
                                         <zip destfile="${project.build.directory}/${jpackage.app.name}-${jpackage.app.version}.zip"
                                              level="6">
@@ -168,6 +227,7 @@
                 </plugins>
             </build>
         </profile>
+        <!-- Windows installer (.exe). WiX 3.11 under target/. E.g. mvn verify -P"jpackage,jpackage-installer" -DskipTests -->
         <profile>
             <id>jpackage-installer</id>
             <build>
@@ -244,9 +304,15 @@
                                         <argument>--win-shortcut</argument>
                                         <argument>--win-menu</argument>
                                         <argument>--module-path</argument>
+                                        <argument>${javafx.module.path}</argument>
+                                        <argument>--add-modules</argument>
+                                        <argument>${jpackage.runtime.modules}</argument>
+                                        <argument>--input</argument>
                                         <argument>${jpackage.lib.dir}</argument>
-                                        <argument>--module</argument>
-                                        <argument>dn.demedallo.admin/dn.demedallo.admin.ui.AdminConsoleApp</argument>
+                                        <argument>--main-jar</argument>
+                                        <argument>${project.build.finalName}.jar</argument>
+                                        <argument>--main-class</argument>
+                                        <argument>${main.class}</argument>
                                     </arguments>
                                 </configuration>
                             </execution>

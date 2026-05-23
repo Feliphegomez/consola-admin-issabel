@@ -66,10 +66,15 @@ public final class MultipleAgentStatusParser {
             s.pauseStart = emptyToNull(text(agentEl, "pausestart"));
         }
 
+        if (s.agentChannel == null || s.agentChannel.isBlank()) {
+            s.agentChannel = emptyToNull(text(agentEl, "agent_number"));
+        }
+
         Element callInfo = firstElement(agentEl, "callinfo");
         if (callInfo != null) {
             fillCallInfo(s, callInfo);
         }
+        applyFlattenedCallFields(s, agentEl);
         Element waited = firstElement(agentEl, "waitedcallinfo");
         if (waited != null) {
             s.waitedCallStatus = emptyToNull(text(waited, "status"));
@@ -78,6 +83,37 @@ public final class MultipleAgentStatusParser {
             s.waitedCallId = parseInt(text(waited, "callid"));
         }
         return s;
+    }
+
+    /** ECCP {@code getcampaignstatus} flattens call fields on the agent node. */
+    private static void applyFlattenedCallFields(AgentState s, Element agentEl) {
+        if (s.callNumber == null) {
+            s.callNumber = emptyToNull(text(agentEl, "callnumber"));
+        }
+        if (s.trunk == null) {
+            s.trunk = emptyToNull(text(agentEl, "trunk"));
+        }
+        if (s.linkStart == null) {
+            s.linkStart = emptyToNull(text(agentEl, "linkstart"));
+        }
+        if (s.queueStart == null) {
+            s.queueStart = emptyToNull(text(agentEl, "queuestart"));
+        }
+        if (s.dialStart == null) {
+            s.dialStart = emptyToNull(text(agentEl, "dialstart"));
+        }
+        if (s.queueNumber == null) {
+            s.queueNumber = emptyToNull(text(agentEl, "queuenumber"));
+        }
+        if (s.callStatus == null || s.callStatus.isBlank()) {
+            s.callStatus = emptyToNull(text(agentEl, "callstatus"));
+        }
+        if (s.callType == null || s.callType.isBlank()) {
+            s.callType = emptyToNull(text(agentEl, "calltype"));
+        }
+        if (s.callId == null) {
+            s.callId = parseInt(text(agentEl, "callid"));
+        }
     }
 
     private static void fillCallInfo(AgentState s, Element callInfo) {

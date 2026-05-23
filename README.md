@@ -20,21 +20,36 @@ mvn -q javafx:run
 
 ```powershell
 cd native-admin-console
-mvn verify "-Pjpackage,jpackage-installer"
+mvn verify "-Pjpackage,jpackage-installer" -DskipTests
 ```
 
-Salidas en `target/`:
+Salidas en `target/` (igual que consola de agentes):
 
 | Artefacto | Ruta |
 |-----------|------|
 | App portable (carpeta + exe) | `target/jpackage-image/ConsolaAdminIssabel/ConsolaAdminIssabel.exe` |
-| ZIP portable | `target/ConsolaAdminIssabel-0.2.0.zip` |
-| Instalador Windows | `target/jpackage-setup/ConsolaAdminIssabel-0.2.0.exe` |
+| ZIP portable | `target/ConsolaAdminIssabel-0.3.0.zip` |
+| Instalador Windows (WiX) | `target/jpackage-setup/ConsolaAdminIssabel-0.3.0.exe` |
 
-Solo imagen portable (sin WiX): `mvn verify -Pjpackage`
+Solo imagen portable + ZIP (sin WiX): `mvn verify -Pjpackage -DskipTests`
 
-## Funcionalidad (v0.2)
+Si `mvn clean` falla al borrar `target/jpackage-setup`, cierre la consola/instalador y vuelva a intentar.
 
+**Importante:** use el instalador de `target/jpackage-setup/`, no copias antiguas en la raíz de `target/`.
+
+## Funcionalidad (v0.3.0)
+
+- **Paneles campaña** (entrantes / salientes): estadísticas por turno, llamadas activas ECCP, agentes
+- **Salientes**: acordeón *Llamadas marcando* y *Pendientes por salir* (MySQL `calls.status IS NULL`)
+- **Fallidas y cortas**: listado + trazabilidad `call_progress_log`
+- **Exportar tablas**: CSV, XLSX, PDF en todas las tablas del monitoreo e informes
+- Login en **dos columnas** (ECCP/AMI | MySQL)
+- **Datos de campaña**: columna Datos (✓) si hay formulario capturado
+
+## Funcionalidad (v0.2+)
+
+- Login ECCP + opcional **MySQL call_center** para informes históricos
+- Pestaña **Informes**: 15 módulos alineados con la consola web Issabel
 - Login solo ECCP (sin `loginagent`)
 - **Pestaña Agentes**: estado, canal, colas, métricas del día (llamadas, tiempo hablado, entrante/saliente), última sesión, detalle de llamada activa (teléfono, cola, tipo, ID, trunk), pausas
 - **Pestaña Colas y campañas**: campañas activas y colas entrantes vía `getcampaignstatus` / `getincomingqueuestatus` (agentes en cola, llamadas en espera, contadores del día)
@@ -50,6 +65,19 @@ Solo imagen portable (sin WiX): `mvn verify -Pjpackage`
 3. En la pestaña Agentes, pulse **Escuchar** en un agente con llamada activa; su teléfono sonará y entrará en modo escucha (p. ej. marcar `5558002` = prefijo `555` + extensión `8002`).
 
 En el login configure **Código escucha** según su Issabel (por defecto `555`, sin asterisco). Si AMI no está configurado, la consola muestra el número a marcar manualmente.
+
+### Informes (pestaña Informes)
+
+| Módulo web | Consola admin | Fuente |
+|------------|---------------|--------|
+| `rep_agents_monitoring` | Monitoreo → Agentes | ECCP |
+| `rep_incoming_calls_monitoring` | Colas entrantes hoy | ECCP |
+| `rep_incoming_campaigns_panel` | Panel campañas entrantes | ECCP |
+| `rep_outgoing_campaigns_panel` | Panel campañas salientes | ECCP |
+| `campaign_monitoring` | Monitoreo de campaña | ECCP |
+| `login_logout`, `reports_break`, `calls_per_hour`, `graphic_calls`, `calls_per_agent`, `calls_detail`, `hold_time`, `ingoings_calls_success`, `rep_trunks_used_per_hour`, `rep_agent_information` | Tabla + filtro fechas | MySQL |
+
+Active **Informes históricos vía MySQL** en el login (usuario/clave de `call_center`, p. ej. desde `/etc/issabel.conf` o `default.conf.php` del módulo).
 
 ## Logs
 

@@ -20,6 +20,25 @@
     -fx-text-fill: #4a5568;
 }
 
+.login-form-columns {
+    -fx-alignment: TOP_LEFT;
+}
+
+.login-form-column {
+    -fx-min-width: 380;
+}
+
+.login-section-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2d3748;
+    -fx-padding: 0 0 4 0;
+}
+
+.login-form {
+    -fx-min-width: 360;
+}
+
 .login-field {
     -fx-pref-height: 32;
 }
@@ -54,6 +73,19 @@
     -fx-background-color: #cbd5e0;
     -fx-text-fill: #718096;
     -fx-cursor: default;
+}
+
+.table-export-bar {
+    -fx-padding: 4 0 2 0;
+}
+
+.table-export-bar .monitor-btn-small {
+    -fx-background-color: #4a5568;
+    -fx-min-width: 52px;
+}
+
+.table-export-bar .monitor-btn-small:hover {
+    -fx-background-color: #2d3748;
 }
 
 .monitor-btn-secondary {
@@ -108,15 +140,70 @@
 
 .monitor-table {
     -fx-background-color: transparent;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+.monitor-table .column-header,
+.monitor-table .table-cell {
+    -fx-alignment: CENTER-LEFT;
+    -fx-text-fill: #1a202c;
 }
 
 .monitor-table .column-header {
     -fx-background-color: #edf2f7;
     -fx-font-weight: bold;
+    -fx-padding: 6 10 6 10;
+}
+
+.monitor-table .table-cell {
+    -fx-padding: 4 10 4 10;
+    -fx-border-color: transparent;
+    -fx-background-color: transparent;
+}
+
+.monitor-table .table-row-cell {
+    -fx-background-insets: 0;
+    -fx-padding: 0;
 }
 
 .monitor-table .table-row-cell:odd {
     -fx-background-color: #fafafa;
+}
+
+.monitor-table .table-row-cell:filled:hover {
+    -fx-background-color: #ebf4ff;
+}
+
+.monitor-table .table-row-cell:filled:selected,
+.monitor-table .table-row-cell:filled:selected:hover {
+    -fx-background-color: #bee3f8;
+}
+
+/* Keep text readable on hover/selection (Modena defaults to light text). */
+.monitor-table .table-row-cell:filled:hover .table-cell,
+.monitor-table .table-row-cell:filled:selected .table-cell,
+.monitor-table:focused .table-row-cell:filled:selected .table-cell,
+.monitor-table:focused .table-row-cell:filled:selected:hover .table-cell {
+    -fx-text-fill: #1a202c;
+    -fx-border-color: transparent;
+    -fx-background-color: transparent;
+}
+
+.monitor-table .table-row-cell:filled:hover .monitor-btn-small,
+.monitor-table .table-row-cell:filled:selected .monitor-btn-small {
+    -fx-background-color: #2f855a;
+    -fx-text-fill: white;
+}
+
+.monitor-table .table-cell:selected {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.monitor-table .table-cell:focused {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
 }
 
 .monitor-filter {
@@ -133,4 +220,426 @@
 
 .monitor-chip-queue {
     -fx-text-fill: #553c9a;
+}
+
+.report-split {
+    -fx-background-color: transparent;
+}
+
+.report-nav-pane {
+    -fx-background-color: #fafbfc;
+    -fx-border-color: #e2e8f0;
+    -fx-border-width: 0 1 0 0;
+    -fx-min-width: 240;
+    -fx-pref-width: 280;
+}
+
+.report-nav-title {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1a365d;
+}
+
+.report-nav-toggle {
+    -fx-font-size: 11px;
+}
+
+.report-list {
+    -fx-background-color: #fafbfc;
+    -fx-min-width: 220;
+}
+
+.report-pane {
+    -fx-background-color: white;
+    -fx-min-width: 0;
+}
+
+.report-desc, .report-placeholder {
+    -fx-text-fill: #4a5568;
+}
+
+/* Branding bar (branding.xml or embedded default) */
+.branding-bar {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #d8e2f0;
+    -fx-border-width: 0 0 1 0;
+}
+
+.branding-company {
+    -fx-font-size: 16px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #1d4ed8;
+}
+
+.branding-title {
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #334155;
+}
+
+.branding-tagline {
+    -fx-font-size: 11px;
+    -fx-text-fill: #64748b;
+}
+
+.app-dialog-notes {
+    -fx-font-size: 11px;
+}
+
+/* Incoming campaigns panel (rep_incoming_campaigns_panel) */
+.incoming-campaign-panel {
+    -fx-background-color: #f0f2f5;
+}
+
+.panel-shift-bar {
+    -fx-background-color: #f5f5f5;
+    -fx-border-color: #dddddd;
+    -fx-border-width: 1;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-padding: 8;
+}
+
+.panel-shift-indicator {
+    -fx-font-style: italic;
+    -fx-text-fill: #666666;
+}
+
+.panel-stats-grid {
+    -fx-background-color: white;
+    -fx-padding: 10 12;
+    -fx-border-color: #cccccc;
+    -fx-border-width: 1;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+}
+
+.panel-stat-label {
+    -fx-font-weight: bold;
+    -fx-text-fill: #333333;
+}
+
+.panel-stat-value {
+    -fx-text-fill: #1a365d;
+}
+
+.panel-table-title {
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+}
+
+.incoming-campaign-panel .monitor-table .column-header {
+    -fx-background-color: #555555;
+}
+
+.incoming-campaign-panel .monitor-table .column-header .label {
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+.incoming-campaign-panel .monitor-table {
+    -fx-background-color: #f0f0f0;
+}
+
+/* Outgoing campaigns panel (rep_outgoing_campaigns_panel) */
+.outgoing-campaign-panel {
+    -fx-background-color: #f0f2f5;
+}
+
+.outgoing-campaign-panel .monitor-table .column-header {
+    -fx-background-color: #555555;
+}
+
+.outgoing-campaign-panel .monitor-table .column-header .label {
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+.outgoing-campaign-panel .monitor-table {
+    -fx-background-color: #f0f0f0;
+}
+
+.outgoing-campaign-panel .panel-calls-accordion {
+    -fx-fill-width: true;
+}
+
+.outgoing-campaign-panel .panel-calls-accordion > .titled-pane > .title {
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+    -fx-background-color: #e8eaed;
+}
+
+.outgoing-campaign-panel .panel-calls-accordion > .titled-pane:expanded > .title {
+    -fx-background-color: #d0d4dc;
+}
+
+.outgoing-campaign-panel .panel-calls-accordion > .titled-pane > *.content {
+    -fx-background-color: #f8f9fa;
+    -fx-padding: 4 6 6 6;
+}
+
+/* Failed / short calls trace tab */
+.failed-short-calls-pane {
+    -fx-background-color: #f0f2f5;
+}
+
+.failed-short-calls-pane .monitor-table .column-header {
+    -fx-background-color: #555555;
+}
+
+.failed-short-calls-pane .monitor-table .column-header .label {
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+.failed-short-calls-pane .monitor-table {
+    -fx-background-color: #f0f0f0;
+}
+
+/* Log viewer (Issabel SSH + local) */
+.logs-pane .logs-config {
+    -fx-background-color: #fafbfc;
+    -fx-padding: 8;
+    -fx-border-color: #e2e8f0;
+    -fx-border-width: 1;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+}
+
+.log-viewer {
+    -fx-font-family: Consolas, "Courier New", monospace;
+    -fx-font-size: 11px;
+}
+
+/* Live dashboard (Issabel panel style) — high-contrast text on light backgrounds */
+.dashboard-pane {
+    -fx-background-color: #dde3ea;
+}
+
+.dashboard-pane .monitor-status {
+    -fx-text-fill: #2d3748;
+    -fx-font-size: 12px;
+}
+
+.dashboard-summary {
+    -fx-padding: 4 0 8 0;
+    -fx-alignment: center;
+}
+
+.dashboard-stat-box {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #a0aec0;
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-padding: 8 14;
+    -fx-min-width: 100;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.06), 4, 0, 0, 1);
+}
+
+.dashboard-stat-title {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1a202c;
+}
+
+.dashboard-stat-value {
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+}
+
+.dashboard-stat-online {
+    -fx-text-fill: #22543d;
+}
+
+.dashboard-stat-offline {
+    -fx-text-fill: #9b2c2c;
+}
+
+.dashboard-stat-incoming {
+    -fx-text-fill: #2c5282;
+}
+
+.dashboard-stat-outgoing {
+    -fx-text-fill: #553c9a;
+}
+
+.dashboard-stat-pending {
+    -fx-text-fill: #9c4221;
+}
+
+.dashboard-section > .title {
+    -fx-font-weight: bold;
+    -fx-background-color: #2d3748;
+}
+
+.dashboard-section > .title .text {
+    -fx-fill: white;
+}
+
+.dashboard-section > .content {
+    -fx-background-color: #edf2f7;
+    -fx-padding: 6;
+}
+
+.dashboard-scroll {
+    -fx-background-color: #edf2f7;
+    -fx-background: #edf2f7;
+}
+
+.dashboard-agent-groups {
+    -fx-padding: 6;
+    -fx-background-color: #edf2f7;
+    -fx-spacing: 12;
+}
+
+.dashboard-agent-group {
+    -fx-background-color: #e2e8f0;
+    -fx-border-color: #cbd5e0;
+    -fx-border-width: 1;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-padding: 8 10 10 10;
+}
+
+.dashboard-agent-grid {
+    -fx-padding: 0;
+}
+
+.dashboard-group-title {
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+    -fx-text-fill: #1a202c;
+    -fx-padding: 0 0 4 0;
+    -fx-max-width: infinity;
+}
+
+/* Agent / extension cards — default dark text */
+.dashboard-ext-card {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #a0aec0;
+    -fx-border-width: 1;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-padding: 8 10;
+    -fx-pref-width: 168;
+    -fx-min-width: 168;
+    -fx-max-width: 168;
+}
+
+.dashboard-ext-card .dashboard-ext-line1 {
+    -fx-font-weight: bold;
+    -fx-font-size: 11px;
+    -fx-text-fill: #1a202c;
+}
+
+.dashboard-ext-card .dashboard-ext-line2 {
+    -fx-font-size: 10px;
+    -fx-text-fill: #2d3748;
+}
+
+.dashboard-ext-online {
+    -fx-border-color: #38a169;
+    -fx-background-color: #c6f6d5;
+}
+
+.dashboard-ext-online .dashboard-ext-line1,
+.dashboard-ext-online .dashboard-ext-line2 {
+    -fx-text-fill: #22543d;
+}
+
+.dashboard-ext-oncall {
+    -fx-border-color: #276749;
+    -fx-background-color: #9ae6b4;
+}
+
+.dashboard-ext-oncall .dashboard-ext-line1,
+.dashboard-ext-oncall .dashboard-ext-line2 {
+    -fx-text-fill: #14532d;
+}
+
+.dashboard-ext-ringing {
+    -fx-border-color: #d69e2e;
+    -fx-background-color: #faf089;
+}
+
+.dashboard-ext-ringing .dashboard-ext-line1,
+.dashboard-ext-ringing .dashboard-ext-line2 {
+    -fx-text-fill: #744210;
+}
+
+.dashboard-ext-paused {
+    -fx-border-color: #dd6b20;
+    -fx-background-color: #fbd38d;
+}
+
+.dashboard-ext-paused .dashboard-ext-line1,
+.dashboard-ext-paused .dashboard-ext-line2 {
+    -fx-text-fill: #7b341e;
+}
+
+.dashboard-ext-offline {
+    -fx-border-color: #cbd5e0;
+    -fx-background-color: #f7fafc;
+}
+
+.dashboard-ext-offline .dashboard-ext-line1,
+.dashboard-ext-offline .dashboard-ext-line2 {
+    -fx-text-fill: #4a5568;
+}
+
+.dashboard-queue-list {
+    -fx-padding: 4;
+    -fx-background-color: #edf2f7;
+}
+
+.dashboard-queue-card {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #718096;
+    -fx-border-width: 1;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-padding: 8 10;
+}
+
+.dashboard-queue-card .dashboard-queue-title {
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+    -fx-text-fill: #1a202c;
+}
+
+.dashboard-queue-card .dashboard-queue-meta {
+    -fx-font-size: 10px;
+    -fx-text-fill: #2d3748;
+}
+
+.dashboard-pane .dashboard-incoming .column-header {
+    -fx-background-color: #2b6cb0;
+}
+
+.dashboard-pane .dashboard-outgoing .column-header {
+    -fx-background-color: #553c9a;
+}
+
+.dashboard-pane .dashboard-pending .column-header {
+    -fx-background-color: #c05621;
+}
+
+.dashboard-pane .monitor-table .column-header .label {
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+.dashboard-pane .monitor-table .table-cell {
+    -fx-text-fill: #1a202c;
+}
+
+.dashboard-pane .monitor-table .placeholder .label {
+    -fx-text-fill: #4a5568;
+    -fx-font-size: 12px;
+}
+
+.dashboard-queue-list > .label {
+    -fx-text-fill: #2d3748;
+    -fx-font-size: 12px;
 }

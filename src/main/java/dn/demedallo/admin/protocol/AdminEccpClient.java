@@ -33,6 +33,8 @@ public final class AdminEccpClient implements AutoCloseable {
     private final EccpPacketFramer framer;
     private final DocumentBuilder docBuilder;
     private final Queue<String> pendingPackets = new ArrayDeque<>();
+    /** Serializes all socket I/O — one ECCP connection must not be used from multiple threads. */
+    private final Object ioLock = new Object();
     private Socket socket;
     private InputStream in;
     private OutputStream out;
@@ -51,14 +53,18 @@ public final class AdminEccpClient implements AutoCloseable {
 
     public void connect(String host, int port, int connectTimeoutMs, int readTimeoutMs) throws IOException {
         Objects.requireNonNull(host, "host");
-        Socket s = new Socket();
-        s.connect(new InetSocketAddress(host, port), connectTimeoutMs);
-        s.setSoTimeout(readTimeoutMs);
-        s.setTcpNoDelay(true);
-        this.socket = s;
-        this.in = s.getInputStream();
-        this.out = s.getOutputStream();
-        AppLogFile.appendLine("[eccp] CONNECT host=" + host + " port=" + port);
+        synchronized (ioLock) {
+            Socket s = new Socket();
+            s.connect(new InetSocketAddress(host, port), connectTimeoutMs);
+            s.setSoTimeout(readTimeoutMs);
+            s.setTcpNoDelay(true);
+            this.socket = s;
+            this.in = s.getInputStream();
+            this.out = s.getOutputStream();
+            pendingPackets.clear();
+            requestId = 0;
+            AppLogFile.appendLine("[eccp] CONNECT host=" + host + " port=" + port);
+        }
     }
 
     public String getAppCookie() {
@@ -156,47 +162,69 @@ public final class AdminEccpClient implements AutoCloseable {
     }
 
     private Document sendRequest(String innerRequestXml) throws IOException, SAXException {
-        if (socket == null || !socket.isConnected()) {
-            throw new IOException("not connected");
-        }
-        int id = ++requestId;
-        String cmd = commandTag(innerRequestXml);
-        boolean logThis = !"getmultipleagentstatus".equals(cmd) && !"getmultipleagentqueues".equals(cmd);
-        if (logThis) {
-            AppLogFile.appendLine("[eccp] -> id=" + id + " cmd=" + cmd);
-        }
-        String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><request id=\"" + id + "\">"
-                + innerRequestXml + "</request>";
-        byte[] bytes = xml.getBytes(StandardCharsets.UTF_8);
-        long t0 = System.nanoTime();
-        try {
-            out.write(bytes);
-            out.flush();
-            while (true) {
-                Document doc = readNextPacketDom();
-                Element root = doc.getDocumentElement();
-                if (root == null || !"response".equals(root.getNodeName())) {
-                    continue;
-                }
-                String rid = root.getAttribute("id");
-                if (rid.isEmpty() || Integer.parseInt(rid) != id) {
-                    throw new IOException("ECCP id mismatch: expected " + id + " got " + rid);
-                }
-                String fail = failureMessage(root);
-                if (fail != null) {
-                    throw new IOException("ECCP failure: " + fail);
-                }
-                if (logThis) {
-                    long dt = (System.nanoTime() - t0) / 1_000_000L;
-                    AppLogFile.appendLine("[eccp] <- id=" + id + " cmd=" + cmd + " ok " + dt + "ms");
-                }
-                return doc;
+        synchronized (ioLock) {
+            if (socket == null || !socket.isConnected()) {
+                throw new IOException("not connected");
             }
-        } catch (IOException | SAXException ex) {
+            int id = ++requestId;
+            String cmd = commandTag(innerRequestXml);
+            boolean logThis = !"getmultipleagentstatus".equals(cmd) && !"getmultipleagentqueues".equals(cmd);
             if (logThis) {
-                AppLogFile.appendLine("[eccp] ERROR id=" + id + " cmd=" + cmd + ": " + ex.getMessage());
+                AppLogFile.appendLine("[eccp] -> id=" + id + " cmd=" + cmd);
             }
-            throw ex;
+            String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><request id=\"" + id + "\">"
+                    + innerRequestXml + "</request>";
+            byte[] bytes = xml.getBytes(StandardCharsets.UTF_8);
+            long t0 = System.nanoTime();
+            int staleSkips = 0;
+            try {
+                out.write(bytes);
+                out.flush();
+                while (true) {
+                    Document doc = readNextPacketDom();
+                    Element root = doc.getDocumentElement();
+                    if (root == null || !"response".equals(root.getNodeName())) {
+                        continue;
+                    }
+                    String rid = root.getAttribute("id");
+                    if (rid.isEmpty()) {
+                        AppLogFile.appendLine("[eccp] skip response without id waiting for " + id);
+                        continue;
+                    }
+                    int responseId = Integer.parseInt(rid);
+                    if (responseId != id) {
+                        if (responseId > id) {
+                            throw new IOException("ECCP id mismatch: expected " + id + " got " + rid);
+                        }
+                        if (++staleSkips > 64) {
+                            throw new IOException("ECCP too many stale responses before id " + id);
+                        }
+                        AppLogFile.appendLine("[eccp] skip stale response id=" + rid + " waiting for " + id);
+                        continue;
+                    }
+                    if (!responseMatchesCommand(root, cmd)) {
+                        if (++staleSkips > 64) {
+                            throw new IOException("ECCP too many unrelated responses for " + cmd);
+                        }
+                        AppLogFile.appendLine("[eccp] skip unrelated response for cmd=" + cmd + " id=" + id);
+                        continue;
+                    }
+                    String fail = failureMessage(root);
+                    if (fail != null) {
+                        throw new IOException("ECCP failure: " + fail);
+                    }
+                    if (logThis) {
+                        long dt = (System.nanoTime() - t0) / 1_000_000L;
+                        AppLogFile.appendLine("[eccp] <- id=" + id + " cmd=" + cmd + " ok " + dt + "ms");
+                    }
+                    return doc;
+                }
+            } catch (IOException | SAXException ex) {
+                if (logThis) {
+                    AppLogFile.appendLine("[eccp] ERROR id=" + id + " cmd=" + cmd + ": " + ex.getMessage());
+                }
+                throw ex;
+            }
         }
     }
 
@@ -239,6 +267,16 @@ public final class AdminEccpClient implements AutoCloseable {
         return msgs.item(0).getTextContent();
     }
 
+    private static boolean responseMatchesCommand(Element responseRoot, String cmd) {
+        if (cmd == null || cmd.isBlank()) {
+            return true;
+        }
+        if ("login".equals(cmd) || "logout".equals(cmd)) {
+            return true;
+        }
+        return responseRoot.getElementsByTagName(cmd + "_response").getLength() > 0;
+    }
+
     private static String commandTag(String innerRequestXml) {
         if (innerRequestXml == null) {
             return "unknown";
@@ -264,21 +302,24 @@ public final class AdminEccpClient implements AutoCloseable {
 
     @Override
     public void close() {
-        try {
-            if (socket != null && socket.isConnected() && appCookie != null && !appCookie.isEmpty()) {
-                logout();
-            }
-        } catch (Exception ignored) {
-        }
-        if (socket != null) {
+        synchronized (ioLock) {
             try {
-                socket.close();
-            } catch (IOException ignored) {
+                if (socket != null && socket.isConnected() && appCookie != null && !appCookie.isEmpty()) {
+                    logout();
+                }
+            } catch (Exception ignored) {
             }
+            if (socket != null) {
+                try {
+                    socket.close();
+                } catch (IOException ignored) {
+                }
+            }
+            socket = null;
+            in = null;
+            out = null;
+            appCookie = "";
+            pendingPackets.clear();
         }
-        socket = null;
-        in = null;
-        out = null;
-        appCookie = "";
     }
 }

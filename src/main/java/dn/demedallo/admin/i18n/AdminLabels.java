@@ -56,20 +56,24 @@ public final class AdminLabels {
     }
 
     public static String formatDurationSeconds(long sec) {
-        return formatLoginSeconds(sec);
+        return formatDaysHms(sec);
     }
 
     public static String formatLoginSeconds(long sec) {
-        if (sec <= 0) {
-            return "—";
+        return formatDaysHms(sec);
+    }
+
+    /** Duration as {@code days H:mm:ss} (e.g. {@code 0 08:11:56}, {@code 1 05:30:00}). */
+    public static String formatDaysHms(long totalSeconds) {
+        if (totalSeconds <= 0) {
+            return "0 00:00:00";
         }
-        long h = sec / 3600;
-        long m = (sec % 3600) / 60;
-        long s = sec % 60;
-        if (h > 0) {
-            return String.format("%d:%02d:%02d", h, m, s);
-        }
-        return String.format("%d:%02d", m, s);
+        long days = totalSeconds / 86400L;
+        long remainder = totalSeconds % 86400L;
+        long hours = remainder / 3600L;
+        long minutes = (remainder % 3600L) / 60L;
+        long seconds = remainder % 60L;
+        return String.format("%d %d:%02d:%02d", days, hours, minutes, seconds);
     }
 
     public static String formatSessionRange(String start, String end) {

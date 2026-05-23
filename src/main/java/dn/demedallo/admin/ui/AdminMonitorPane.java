@@ -27,12 +27,19 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import dn.demedallo.admin.ui.report.FailedShortCallsPane;
+import dn.demedallo.admin.ui.report.IncomingCampaignsPanelPane;
+import dn.demedallo.admin.ui.report.OutgoingCampaignsPanelPane;
+import dn.demedallo.admin.util.AdminDbSettings;
+import dn.demedallo.admin.ui.util.TableViewUtil;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.control.SplitPane;
 import javafx.util.Duration;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -44,6 +51,8 @@ import java.util.function.Function;
 public final class AdminMonitorPane extends BorderPane {
 
     private static final int POLL_SECONDS = 5;
+    /** Sentinel item for “no queue filter” (must not match a real queue name). */
+    private static final String ALL_QUEUES_LABEL = "— Todas las colas —";
 
     private final AdminEccpClient client;
     private final Consumer<String> onLogout;
@@ -71,8 +80,13 @@ public final class AdminMonitorPane extends BorderPane {
     private final Label summaryQueues = new Label("0");
     private final Label summaryActiveCalls = new Label("0");
     private final ComboBox<String> queueFilter = new ComboBox<>();
+    private volatile boolean rebuildingQueueFilter;
+    private final IncomingCampaignsPanelPane incomingCampaignPanel;
+    private final OutgoingCampaignsPanelPane outgoingCampaignPanel;
+    private final FailedShortCallsPane failedShortCallsPane;
 
-    public AdminMonitorPane(AdminEccpClient client, AdminMonitorSettings settings, Consumer<String> onLogout) {
+    public AdminMonitorPane(AdminEccpClient client, AdminMonitorSettings settings,
+                            AdminDbSettings dbSettings, Consumer<String> onLogout) {
         this.client = client;
         this.onLogout = onLogout;
         this.monitorService = new AgentMonitorService(client);
@@ -80,9 +94,16 @@ public final class AdminMonitorPane extends BorderPane {
         getStyleClass().add("monitor-root");
         setPadding(new Insets(12));
 
-        queueFilter.setPromptText("Todas las colas");
-        queueFilter.setMaxWidth(240);
-        queueFilter.valueProperty().addListener((obs, o, n) -> applyQueueFilter(n));
+        queueFilter.setEditable(false);
+        queueFilter.setMaxWidth(260);
+        queueFilter.getItems().add(ALL_QUEUES_LABEL);
+        queueFilter.setValue(ALL_QUEUES_LABEL);
+        filteredAgents.setPredicate(null);
+        queueFilter.valueProperty().addListener((obs, o, n) -> {
+            if (!rebuildingQueueFilter) {
+                applyQueueFilter(n);
+            }
+        });
         queueFilter.getStyleClass().add("monitor-filter");
 
         Button refresh = new Button("Actualizar");
@@ -111,10 +132,18 @@ public final class AdminMonitorPane extends BorderPane {
         tabs.getStyleClass().add("monitor-tabs");
         tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
 
-        Tab tabAgents = new Tab("Agentes", buildAgentTable());
-        Tab tabQueues = new Tab("Colas y campañas", buildQueueTable());
-        Tab tabCalls = new Tab("Llamadas activas", buildActiveCallTable());
-        tabs.getTabs().addAll(tabAgents, tabQueues, tabCalls);
+        incomingCampaignPanel = new IncomingCampaignsPanelPane(client, dbSettings);
+        outgoingCampaignPanel = new OutgoingCampaignsPanelPane(client, dbSettings);
+        failedShortCallsPane = new FailedShortCallsPane(dbSettings);
+        SplitPane campaignPanels = new SplitPane(incomingCampaignPanel, outgoingCampaignPanel);
+        campaignPanels.setDividerPositions(0.5);
+
+        Tab tabAgents = new Tab("Agentes", wrapMonitorTable(buildAgentTable(), "agentes"));
+        Tab tabQueues = new Tab("Colas y campañas", wrapMonitorTable(buildQueueTable(), "colas-campanas"));
+        Tab tabCalls = new Tab("Llamadas activas", wrapMonitorTable(buildActiveCallTable(), "llamadas-activas"));
+        Tab tabCampaignPanels = new Tab("Paneles campaña", campaignPanels);
+        Tab tabFailedShort = new Tab("Fallidas y cortas", failedShortCallsPane);
+        tabs.getTabs().addAll(tabAgents, tabQueues, tabCalls, tabCampaignPanels, tabFailedShort);
 
         statusBar.getStyleClass().add("monitor-status");
         VBox top = new VBox(8, toolbar, counters);
@@ -129,9 +158,8 @@ public final class AdminMonitorPane extends BorderPane {
 
     private TableView<AgentMonitorRow> buildAgentTable() {
         TableView<AgentMonitorRow> table = new TableView<>();
-        table.getStyleClass().add("monitor-table");
+        TableViewUtil.prepare(table);
         table.setItems(filteredAgents);
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         table.getColumns().addAll(
                 listenColumn(),
                 col("Agente", AgentMonitorRow::agentNumberProperty, 100),
@@ -158,9 +186,8 @@ public final class AdminMonitorPane extends BorderPane {
 
     private TableView<QueueMonitorRow> buildQueueTable() {
         TableView<QueueMonitorRow> table = new TableView<>();
-        table.getStyleClass().add("monitor-table");
+        TableViewUtil.prepare(table);
         table.setItems(allQueues);
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         table.getColumns().addAll(
                 colQ("Cola", QueueMonitorRow::queueProperty, 80),
                 colQ("Tipo", QueueMonitorRow::typeLabelProperty, 70),
@@ -175,9 +202,8 @@ public final class AdminMonitorPane extends BorderPane {
 
     private TableView<ActiveCallRow> buildActiveCallTable() {
         TableView<ActiveCallRow> table = new TableView<>();
-        table.getStyleClass().add("monitor-table");
+        TableViewUtil.prepare(table);
         table.setItems(allActiveCalls);
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         table.getColumns().addAll(
                 colC("Cola", ActiveCallRow::queueProperty, 80),
                 colC("Campaña", ActiveCallRow::campaignProperty, 140),
@@ -290,7 +316,7 @@ public final class AdminMonitorPane extends BorderPane {
                                                    double pref) {
         TableColumn<T, String> c = new TableColumn<>(title);
         c.setCellValueFactory(data -> prop.apply(data.getValue()));
-        c.setPrefWidth(pref);
+        TableViewUtil.styleColumn(c, pref);
         return c;
     }
 
@@ -307,12 +333,45 @@ public final class AdminMonitorPane extends BorderPane {
     }
 
     private void applyQueueFilter(String queue) {
-        if (queue == null || queue.isBlank() || "Todas las colas".equals(queue)) {
-            filteredAgents.setPredicate(row -> true);
-        } else {
-            String q = queue.trim();
-            filteredAgents.setPredicate(row -> row.getQueues() != null && row.getQueues().contains(q));
+        if (isAllQueuesSelection(queue)) {
+            filteredAgents.setPredicate(null);
+            return;
         }
+        String q = queue == null ? "" : queue.trim();
+        filteredAgents.setPredicate(row -> agentMatchesQueue(row, q));
+    }
+
+    private static boolean isAllQueuesSelection(String queue) {
+        return queue == null
+                || queue.isBlank()
+                || ALL_QUEUES_LABEL.equals(queue)
+                || "Todas las colas".equals(queue);
+    }
+
+    private static boolean agentMatchesQueue(AgentMonitorRow row, String queue) {
+        if (queue.isEmpty()) {
+            return true;
+        }
+        String assigned = row.getQueues();
+        if (assigned != null && !assigned.isBlank() && !"—".equals(assigned)) {
+            for (String part : assigned.split(",")) {
+                if (queue.equalsIgnoreCase(part.trim())) {
+                    return true;
+                }
+            }
+        }
+        String active = row.activeQueueProperty().get();
+        return active != null && !active.isBlank() && !"—".equals(active)
+                && queue.equalsIgnoreCase(active.trim());
+    }
+
+    private static BorderPane wrapMonitorTable(TableView<?> table, String exportName) {
+        table.setMaxWidth(Double.MAX_VALUE);
+        table.setMaxHeight(Double.MAX_VALUE);
+        BorderPane pane = new BorderPane(TableViewUtil.wrapInScrollPane(table, exportName));
+        pane.setMinHeight(280);
+        BorderPane.setAlignment(table, Pos.CENTER);
+        return pane;
     }
 
     private void startPolling() {
@@ -352,6 +411,7 @@ public final class AdminMonitorPane extends BorderPane {
 
     private void rebuildQueueFilter(List<AgentMonitorRow> rows) {
         String prev = queueFilter.getValue();
+        boolean wasAll = isAllQueuesSelection(prev);
         Set<String> queues = new HashSet<>();
         for (AgentMonitorRow r : rows) {
             String qs = r.getQueues();
@@ -370,14 +430,23 @@ public final class AdminMonitorPane extends BorderPane {
                 queues.add(q.getQueue().trim());
             }
         }
-        List<String> items = queues.stream().sorted(String.CASE_INSENSITIVE_ORDER).toList();
-        queueFilter.getItems().setAll(items);
-        queueFilter.getItems().add(0, "Todas las colas");
-        if (prev != null && queueFilter.getItems().contains(prev)) {
-            queueFilter.setValue(prev);
-        } else {
-            queueFilter.setValue("Todas las colas");
+        List<String> items = new ArrayList<>();
+        items.add(ALL_QUEUES_LABEL);
+        items.addAll(queues.stream().sorted(String.CASE_INSENSITIVE_ORDER).toList());
+        rebuildingQueueFilter = true;
+        try {
+            queueFilter.getItems().setAll(items);
+            if (wasAll) {
+                queueFilter.setValue(ALL_QUEUES_LABEL);
+            } else if (prev != null && items.contains(prev)) {
+                queueFilter.setValue(prev);
+            } else {
+                queueFilter.setValue(ALL_QUEUES_LABEL);
+            }
+        } finally {
+            rebuildingQueueFilter = false;
         }
+        applyQueueFilter(queueFilter.getValue());
     }
 
     private void updateCounters(MonitorSnapshot snap) {
@@ -413,6 +482,18 @@ public final class AdminMonitorPane extends BorderPane {
             pollTimeline.stop();
         }
         worker.shutdownNow();
+        try {
+            incomingCampaignPanel.close();
+        } catch (Exception ignored) {
+        }
+        try {
+            outgoingCampaignPanel.close();
+        } catch (Exception ignored) {
+        }
+        try {
+            failedShortCallsPane.close();
+        } catch (Exception ignored) {
+        }
     }
 
     private void stopPollingAndLogout() {
