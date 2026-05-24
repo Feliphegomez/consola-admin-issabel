@@ -81,10 +81,16 @@ public final class AdminWorkspacePane extends BorderPane {
                 case "Sistema" -> selectSistema;
                 default -> null;
             };
-            if (select != null) {
+            javafx.scene.Node content = tab.getContent();
+            if (content instanceof NavSectionPane nav) {
+                nav.publishTrailForSelection();
+            } else if (content instanceof AdminMonitorPane mon) {
+                mon.refreshNavigationTrail();
+            } else if (content instanceof ReportsBrowserPane rep) {
+                rep.refreshNavigationTrail();
+            } else if (select != null) {
                 navigation.setMainOnly(title, select);
             }
-            refreshSubNavigation(tab);
         });
 
         BorderPane body = new BorderPane();
@@ -97,17 +103,6 @@ public final class AdminWorkspacePane extends BorderPane {
         getStyleClass().add("app-root");
 
         mainTabs.getSelectionModel().selectFirst();
-    }
-
-    private void refreshSubNavigation(Tab mainTab) {
-        javafx.scene.Node content = mainTab.getContent();
-        if (content instanceof NavSectionPane nav) {
-            nav.publishTrailForSelection();
-        } else if (content instanceof AdminMonitorPane mon) {
-            mon.refreshNavigationTrail();
-        } else if (content instanceof ReportsBrowserPane rep) {
-            rep.refreshNavigationTrail();
-        }
     }
 
     private void selectMainTab(int index) {

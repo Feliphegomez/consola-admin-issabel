@@ -10,13 +10,12 @@ La consola se conecta al servidor Issabel por **ECCP** (monitoreo en vivo) y, de
 
 1. [Pantalla de conexión (login)](#1-pantalla-de-conexión-login)
 2. [Vista general del workspace](#2-vista-general-del-workspace)
-3. [Pestaña Dashboard](#3-pestaña-dashboard)
+3. [Pestaña Inicio (Dashboard)](#3-pestaña-inicio-dashboard)
 4. [Pestaña Monitoreo](#4-pestaña-monitoreo)
-5. [Pestaña Gestión Reintentos](#5-pestaña-gestión-reintentos)
-6. [Pestaña Buscar trazabilidad](#6-pestaña-buscar-trazabilidad)
-7. [Pestaña Datos campañas](#7-pestaña-datos-campañas)
-8. [Pestaña Informes](#8-pestaña-informes)
-9. [Pestaña Logs Issabel](#9-pestaña-logs-issabel)
+5. [Pestaña Llamadas](#5-pestaña-llamadas)
+6. [Pestaña Informes](#6-pestaña-informes)
+7. [Pestaña Campañas](#7-pestaña-campañas)
+8. [Pestaña Sistema](#8-pestaña-sistema)
 10. [Escuchar llamadas de un agente](#10-escuchar-llamadas-de-un-agente)
 11. [Exportar tablas](#11-exportar-tablas)
 12. [Qué puede y qué no puede ver la consola](#12-qué-puede-y-qué-no-puede-ver-la-consola)
@@ -74,11 +73,18 @@ Tras conectar, la ventana principal muestra **seis pestañas** (no se pueden cer
 
 El título de la ventana incluye el host al que está conectado.
 
+### Barra «Ubicación» (arriba)
+
+Muestra la ruta actual, por ejemplo: `Llamadas › Grabaciones` o `Sistema › PBX / Asterisk › Colas`.
+
+- Los segmentos anteriores son **enlaces**: un clic vuelve a esa vista.
+- El último segmento (negrita) es la pantalla actual.
+
 **Actualización automática:** Inicio y Monitoreo (y paneles en vivo) se refrescan cada **5 segundos**. Use **Actualizar** para forzar una lectura inmediata.
 
 ---
 
-## 3. Pestaña Dashboard
+## 3. Pestaña Inicio (Dashboard)
 
 Vista panorámica para supervisión rápida. No tiene subpestañas; está organizada en **secciones**.
 
