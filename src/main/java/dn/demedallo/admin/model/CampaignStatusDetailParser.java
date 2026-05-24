@@ -114,9 +114,6 @@ public final class CampaignStatusDetailParser {
         if (status == null || status.isEmpty()) {
             return "-";
         }
-        if ("placing".equalsIgnoreCase(status) && trunk != null && !trunk.isEmpty()) {
-            return "Marcando";
-        }
         return switch (status.toLowerCase()) {
             case "onqueue" -> "En cola";
             case "ringing" -> "Sonando";
@@ -125,7 +122,7 @@ public final class CampaignStatusDetailParser {
             case "shortcall" -> "Corta";
             case "noanswer" -> "Sin respuesta";
             case "failure" -> "Fallo";
-            case "placing" -> "Marcando";
+            case "placing" -> "Colocando";
             default -> status;
         };
     }

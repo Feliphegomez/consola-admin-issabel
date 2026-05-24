@@ -2,6 +2,8 @@
 
 Cliente de escritorio JavaFX para supervisores: monitoreo de agentes en tiempo casi real vía ECCP (puerto TCP 20005), alineado con el módulo web `rep_agents_monitoring`.
 
+**Guía para el usuario final (pestañas, componentes y escucha):** [MANUAL-USUARIO.md](MANUAL-USUARIO.md)
+
 ## Requisitos
 
 - JDK 21+
@@ -28,14 +30,21 @@ Salidas en `target/` (igual que consola de agentes):
 | Artefacto | Ruta |
 |-----------|------|
 | App portable (carpeta + exe) | `target/jpackage-image/ConsolaAdminIssabel/ConsolaAdminIssabel.exe` |
-| ZIP portable | `target/ConsolaAdminIssabel-0.3.0.zip` |
-| Instalador Windows (WiX) | `target/jpackage-setup/ConsolaAdminIssabel-0.3.0.exe` |
+| ZIP portable | `target/ConsolaAdminIssabel-0.4.0.zip` |
+| Instalador Windows (WiX) | `target/jpackage-setup/ConsolaAdminIssabel-0.4.0.exe` |
 
 Solo imagen portable + ZIP (sin WiX): `mvn verify -Pjpackage -DskipTests`
 
 Si `mvn clean` falla al borrar `target/jpackage-setup`, cierre la consola/instalador y vuelva a intentar.
 
 **Importante:** use el instalador de `target/jpackage-setup/`, no copias antiguas en la raíz de `target/`.
+
+## Funcionalidad (v0.4.0 — en desarrollo)
+
+- **Dashboard** (primera pestaña): métricas en tiempo real, agentes por cola (grid), colas/campañas, tablas de llamadas entrantes/salientes y pendientes del dialer (MySQL)
+- **Gestión Reintentos**: llamadas salientes fallidas/cortas/sin respuesta; botón *Reagendar* para nuevo intento del dialer (MySQL)
+- **Buscar trazabilidad**: por teléfono (ej. `6045451116`), listado entrantes/salientes y pasos legibles de `call_progress_log` (MySQL)
+- Actualización automática cada 5 s en Dashboard
 
 ## Funcionalidad (v0.3.0)
 
@@ -60,11 +69,25 @@ Si `mvn clean` falla al borrar `target/jpackage-setup`, cierre la consola/instal
 
 ### Escuchar llamadas activas
 
-1. En el login indique **su extensión** (softphone o teléfono del supervisor).
-2. Active **AMI** y configure usuario/clave de `/etc/asterisk/manager.conf` (permiso `originate`).
-3. En la pestaña Agentes, pulse **Escuchar** en un agente con llamada activa; su teléfono sonará y entrará en modo escucha (p. ej. marcar `5558002` = prefijo `555` + extensión `8002`).
+Tres modos en login (**Modo escucha**):
 
-En el login configure **Código escucha** según su Issabel (por defecto `555`, sin asterisco). Si AMI no está configurado, la consola muestra el número a marcar manualmente.
+| Modo | Uso |
+|------|-----|
+| **AMI** | Marca su extensión física al pulsar Escuchar (requiere AMI + extensión supervisor) |
+| **Teléfono integrado** | WebRTC SipJS en pestaña *Teléfono integrado* (WSS 8089, sin softphone externo) |
+| **Manual** | Solo muestra/copia el código spy (ej. `5558002`) |
+
+En el login configure **Código escucha** según su Issabel (por defecto `555`, sin asterisco).
+
+#### Referencia WebRTC (`native-web-phone`, solo lectura)
+
+La pestaña **Teléfono integrado** usa el mismo stack que `native-web-phone` (`WebRtcPhonePane` + SipJS 0.11.6 en `src/main/resources/webphone/webrtc/`). La consola admin añade:
+
+- Audio remoto (`trackAdded` + `<audio>`, patrón `webphone-origin`)
+- Precalentado de micrófono (`getUserMedia`)
+- Dominio SIP / ruta WSS configurables
+
+Si en `native-web-phone` le funciona el registro, use **los mismos valores** (host, puerto 8089, path `/ws`, usuario/clave SIP). No modifique ese repo; los cambios van solo en `native-admin-console`.
 
 ### Informes (pestaña Informes)
 

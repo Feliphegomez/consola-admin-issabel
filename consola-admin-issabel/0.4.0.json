@@ -1,0 +1,10 @@
+{
+  "version": "0.4.0",
+  "download_url": "https://releases.demedallo.com/consola-admin-issabel/0.4.0/ConsolaAdminIssabel-0.4.0.exe",
+  "zip_url": "https://releases.demedallo.com/consola-admin-issabel/0.4.0/ConsolaAdminIssabel-0.4.0.zip",
+  "notes": "--- 0.4.0 (en desarrollo) ---\n- Pestaña Dashboard: resumen supervisor (métricas, agentes por cola, colas/campañas, llamadas entrantes/salientes, pendientes dialer MySQL).\n- Pestaña Gestión Reintentos: reagendar llamadas salientes fallidas/cortas para nuevo intento del dialer.\n- Grid alineado de tarjetas de agente (5 columnas); mejor contraste de colores en estados.\n\nEN: Dashboard tab; retry management tab; aligned agent grid; UI contrast.\n\nFill sha256 after upload to releases.demedallo.com.",
+  "sha256": {
+    "exe": "",
+    "zip": ""
+  }
+}

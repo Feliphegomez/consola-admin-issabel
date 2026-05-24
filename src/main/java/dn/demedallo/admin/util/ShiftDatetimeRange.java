@@ -41,6 +41,34 @@ public final class ShiftDatetimeRange {
         return new ShiftDatetimeRange(start.format(FMT), end.format(FMT), indicator);
     }
 
+    /** Inclusive calendar range (start of {@code from} through end of {@code to}). */
+    public static ShiftDatetimeRange ofDates(LocalDate from, LocalDate to) {
+        LocalDate startDate = from != null ? from : LocalDate.now();
+        LocalDate endDate = to != null ? to : startDate;
+        if (endDate.isBefore(startDate)) {
+            LocalDate tmp = startDate;
+            startDate = endDate;
+            endDate = tmp;
+        }
+        LocalDateTime start = startDate.atStartOfDay();
+        LocalDateTime end = endDate.atTime(23, 59, 59);
+        String indicator = startDate.equals(endDate)
+                ? startDate.toString()
+                : startDate + " — " + endDate;
+        return new ShiftDatetimeRange(start.format(FMT), end.format(FMT), indicator);
+    }
+
+    /** Rolling window ending at current time (datetime computed in Java). */
+    public static ShiftDatetimeRange ofLastHours(int hours) {
+        int h = Math.max(1, hours);
+        LocalDateTime end = LocalDateTime.now().withNano(0);
+        LocalDateTime start = end.minusHours(h);
+        return new ShiftDatetimeRange(
+                start.format(FMT),
+                end.format(FMT),
+                "Últimas " + h + " horas");
+    }
+
     private static int clamp(int h) {
         return Math.max(0, Math.min(23, h));
     }

@@ -32,6 +32,8 @@ import javafx.scene.control.Button;
 
 import javafx.scene.control.CheckBox;
 
+import javafx.scene.control.ComboBox;
+
 import javafx.scene.control.Label;
 
 import javafx.scene.control.PasswordField;
@@ -142,6 +144,12 @@ public class AdminConsoleApp extends Application {
 
         CheckBox remember = new CheckBox("Recordar contraseña ECCP en este equipo");
 
+        ComboBox<String> listenMode = new ComboBox<>();
+        listenMode.getItems().addAll(
+                "AMI — marcar mi extensión (requiere ext. supervisor + AMI)",
+                "Manual — mostrar/copiar código de escucha");
+        listenMode.getStyleClass().add("login-field");
+
         TextField supervisorExt = new TextField();
 
         CheckBox amiEnabled = new CheckBox("Escucha automática vía AMI (marca su extensión al pulsar Escuchar)");
@@ -163,6 +171,10 @@ public class AdminConsoleApp extends Application {
         TextField dbPort = new TextField();
 
         TextField dbName = new TextField();
+
+        TextField dbPbxName = new TextField();
+
+        TextField dbCdrName = new TextField();
 
         TextField dbUser = new TextField();
 
@@ -214,6 +226,8 @@ public class AdminConsoleApp extends Application {
 
         spyPrefix.setText(monitorSettings.spyPrefix);
 
+        selectListenModeCombo(listenMode, monitorSettings.listenDelivery);
+
         amiPort.setPromptText("5038");
 
         supervisorExt.setPromptText("Ej: 8003 — su extensión física o softphone");
@@ -225,6 +239,10 @@ public class AdminConsoleApp extends Application {
         spyPrefix.setPromptText("555 — código escucha + extensión agente (sin *)");
 
         spyPrefix.getStyleClass().add("login-field");
+
+        Runnable refreshListenFields = () -> updateListenFieldVisibility(
+                listenMode, supervisorExt, amiEnabled, amiPort, amiUser, amiSecret);
+        listenMode.valueProperty().addListener((o, a, b) -> refreshListenFields.run());
 
         if (monitorSettings.isListenConfigured()) {
 
@@ -242,6 +260,10 @@ public class AdminConsoleApp extends Application {
 
         dbName.setText(dbSettings.dbName);
 
+        dbPbxName.setText(dbSettings.pbxDbName);
+
+        dbCdrName.setText(dbSettings.cdrDbName);
+
         dbUser.setText(dbSettings.dbUser);
 
         dbPass.setText(dbSettings.dbPassword);
@@ -252,6 +274,10 @@ public class AdminConsoleApp extends Application {
 
         dbName.getStyleClass().add("login-field");
 
+        dbPbxName.getStyleClass().add("login-field");
+
+        dbCdrName.getStyleClass().add("login-field");
+
         dbUser.getStyleClass().add("login-field");
 
         dbPass.getStyleClass().add("login-field");
@@ -259,6 +285,10 @@ public class AdminConsoleApp extends Application {
         dbPort.setPromptText("3306");
 
         dbName.setPromptText("call_center");
+
+        dbPbxName.setPromptText("asterisk");
+
+        dbCdrName.setPromptText("asteriskcdrdb");
 
 
 
@@ -281,6 +311,7 @@ public class AdminConsoleApp extends Application {
         eccpRow = addLoginField(eccpForm, eccpRow, "Usuario ECCP", eccpUser);
         eccpRow = addLoginField(eccpForm, eccpRow, "Clave ECCP", eccpPass);
         eccpRow = addLoginFullWidth(eccpForm, eccpRow, remember);
+        eccpRow = addLoginField(eccpForm, eccpRow, "Modo escucha", listenMode);
         eccpRow = addLoginField(eccpForm, eccpRow, "Su extensión", supervisorExt);
         eccpRow = addLoginFullWidth(eccpForm, eccpRow, amiEnabled);
         eccpRow = addLoginField(eccpForm, eccpRow, "Puerto AMI", amiPort);
@@ -288,13 +319,16 @@ public class AdminConsoleApp extends Application {
         eccpRow = addLoginField(eccpForm, eccpRow, "Clave AMI", amiSecret);
         eccpRow = addLoginField(eccpForm, eccpRow, "Tecnología canal", channelTech);
         addLoginField(eccpForm, eccpRow, "Código escucha", spyPrefix);
+        refreshListenFields.run();
 
         GridPane dbForm = newLoginFieldGrid();
         int dbRow = 0;
         dbRow = addLoginFullWidth(dbForm, dbRow, dbEnabled);
         dbRow = addLoginField(dbForm, dbRow, "Host MySQL", dbHost);
         dbRow = addLoginField(dbForm, dbRow, "Puerto MySQL", dbPort);
-        dbRow = addLoginField(dbForm, dbRow, "Base de datos", dbName);
+        dbRow = addLoginField(dbForm, dbRow, "Base call_center", dbName);
+        dbRow = addLoginField(dbForm, dbRow, "Base PBX (Asterisk)", dbPbxName);
+        dbRow = addLoginField(dbForm, dbRow, "Base CDR (grabaciones)", dbCdrName);
         dbRow = addLoginField(dbForm, dbRow, "Usuario MySQL", dbUser);
         addLoginField(dbForm, dbRow, "Clave MySQL", dbPass);
 
@@ -313,7 +347,8 @@ public class AdminConsoleApp extends Application {
 
         title.getStyleClass().add("login-title");
 
-        Label sub = new Label("ECCP supervisor + informes Issabel. Históricos: BD call_center (mismo DSN que módulos web).");
+        Label sub = new Label(
+                "ECCP supervisor + informes Issabel. Escucha de llamadas vía AMI o código manual.");
 
         sub.getStyleClass().add("login-sub");
 
@@ -353,6 +388,7 @@ public class AdminConsoleApp extends Application {
 
                     AdminMonitorSettings ms = AdminMonitorSettings.load();
 
+                    ms.listenDelivery = listenDeliveryFromCombo(listenMode);
                     ms.supervisorExtension = supervisorExt.getText().trim();
 
                     ms.amiEnabled = amiEnabled.isSelected();
@@ -402,6 +438,10 @@ public class AdminConsoleApp extends Application {
                     }
 
                     db.dbName = dbName.getText().trim();
+
+                    db.pbxDbName = dbPbxName.getText().trim();
+
+                    db.cdrDbName = dbCdrName.getText().trim();
 
                     db.dbUser = dbUser.getText().trim();
 
@@ -597,9 +637,11 @@ public class AdminConsoleApp extends Application {
         return grid;
     }
 
-    private static int addLoginField(GridPane grid, int row, String label, Node field) {
-        grid.add(new Label(label), 0, row);
+    private static int addLoginField(GridPane grid, int row, String labelText, Node field) {
+        Label label = new Label(labelText);
+        grid.add(label, 0, row);
         grid.add(field, 1, row);
+        field.getProperties().put("loginLabel", label);
         GridPane.setHgrow(field, Priority.ALWAYS);
         return row + 1;
     }
@@ -616,6 +658,43 @@ public class AdminConsoleApp extends Application {
         box.getStyleClass().add("login-form-column");
         VBox.setVgrow(fields, Priority.NEVER);
         return box;
+    }
+
+    private static void selectListenModeCombo(ComboBox<String> combo, String delivery) {
+        if (AdminMonitorSettings.LISTEN_MANUAL.equals(delivery)) {
+            combo.getSelectionModel().select(1);
+        } else {
+            combo.getSelectionModel().select(0);
+        }
+    }
+
+    private static String listenDeliveryFromCombo(ComboBox<String> combo) {
+        int idx = combo.getSelectionModel().getSelectedIndex();
+        if (idx == 1) {
+            return AdminMonitorSettings.LISTEN_MANUAL;
+        }
+        return AdminMonitorSettings.LISTEN_PHONE_AMI;
+    }
+
+    private static void updateListenFieldVisibility(
+            ComboBox<String> listenMode, TextField supervisorExt, CheckBox amiEnabled,
+            TextField amiPort, TextField amiUser, PasswordField amiSecret) {
+        boolean ami = !AdminMonitorSettings.LISTEN_MANUAL.equals(listenDeliveryFromCombo(listenMode));
+        setLoginFieldVisible(supervisorExt, ami);
+        setLoginFieldVisible(amiEnabled, ami);
+        setLoginFieldVisible(amiPort, ami);
+        setLoginFieldVisible(amiUser, ami);
+        setLoginFieldVisible(amiSecret, ami);
+    }
+
+    private static void setLoginFieldVisible(Node field, boolean visible) {
+        field.setVisible(visible);
+        field.setManaged(visible);
+        Object labelObj = field.getProperties().get("loginLabel");
+        if (labelObj instanceof Node label) {
+            label.setVisible(visible);
+            label.setManaged(visible);
+        }
     }
 
     private static void appendLog(TextArea log, String line) {

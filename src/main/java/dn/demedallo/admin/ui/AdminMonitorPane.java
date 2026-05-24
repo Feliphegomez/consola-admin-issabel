@@ -5,9 +5,9 @@ import dn.demedallo.admin.model.AgentMonitorRow;
 import dn.demedallo.admin.model.QueueMonitorRow;
 import dn.demedallo.admin.protocol.AdminEccpClient;
 import dn.demedallo.admin.service.AgentMonitorService;
-import dn.demedallo.admin.service.CallListenService;
-import dn.demedallo.admin.service.ListenException;
+import dn.demedallo.admin.service.ListenUiActions;
 import dn.demedallo.admin.service.MonitorSnapshot;
+import dn.demedallo.admin.util.SpyTargetUtil;
 import dn.demedallo.admin.util.AdminMonitorSettings;
 import dn.demedallo.admin.util.AppLogFile;
 import javafx.animation.KeyFrame;
@@ -68,7 +68,7 @@ public final class AdminMonitorPane extends BorderPane {
     private final ObservableList<ActiveCallRow> allActiveCalls = FXCollections.observableArrayList();
 
     private final AgentMonitorService monitorService;
-    private final CallListenService listenService;
+    private final ListenUiActions listenActions;
     private Timeline pollTimeline;
     private volatile boolean polling;
 
@@ -86,11 +86,12 @@ public final class AdminMonitorPane extends BorderPane {
     private final FailedShortCallsPane failedShortCallsPane;
 
     public AdminMonitorPane(AdminEccpClient client, AdminMonitorSettings settings,
-                            AdminDbSettings dbSettings, Consumer<String> onLogout) {
+                            AdminDbSettings dbSettings, Consumer<String> onLogout,
+                            ListenUiActions listenActions) {
         this.client = client;
         this.onLogout = onLogout;
         this.monitorService = new AgentMonitorService(client);
-        this.listenService = new CallListenService(settings);
+        this.listenActions = listenActions;
         getStyleClass().add("monitor-root");
         setPadding(new Insets(12));
 
@@ -189,6 +190,7 @@ public final class AdminMonitorPane extends BorderPane {
         TableViewUtil.prepare(table);
         table.setItems(allQueues);
         table.getColumns().addAll(
+                queueListenColumn(),
                 colQ("Cola", QueueMonitorRow::queueProperty, 80),
                 colQ("Tipo", QueueMonitorRow::typeLabelProperty, 70),
                 colQ("Campaña", QueueMonitorRow::campaignNameProperty, 140),
@@ -205,6 +207,7 @@ public final class AdminMonitorPane extends BorderPane {
         TableViewUtil.prepare(table);
         table.setItems(allActiveCalls);
         table.getColumns().addAll(
+                activeCallListenColumn(),
                 colC("Cola", ActiveCallRow::queueProperty, 80),
                 colC("Campaña", ActiveCallRow::campaignProperty, 140),
                 colC("Teléfono", ActiveCallRow::numberProperty, 110),
@@ -260,55 +263,128 @@ public final class AdminMonitorPane extends BorderPane {
     }
 
     private void startListen(AgentMonitorRow row) {
-        statusBar.setText("Iniciando escucha de " + row.getAgentName() + "…");
-        worker.execute(() -> {
-            try {
-                String ch = row.channelProperty().get();
-                if ("—".equals(ch)) {
-                    ch = "";
-                }
-                listenService.startListen(row.getSpyExtension(), row.getAgentNumber(), ch);
-                Platform.runLater(() -> statusBar.setText(
-                        "Llamada de monitoreo enviada — conteste en su extensión (spy " + row.getSpyExtension() + ")."));
-            } catch (ListenException ex) {
-                AppLogFile.appendLine("[listen] " + ex.getReason() + ": " + ex.getMessage());
-                Platform.runLater(() -> showListenError(ex));
-            } catch (Exception ex) {
-                AppLogFile.appendLine("[listen] " + ex.getMessage());
-                Platform.runLater(() -> {
-                    statusBar.setText("Escucha: " + ex.getMessage());
-                    Alert alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle("Escuchar llamada");
-                    alert.setHeaderText("Error al iniciar la escucha");
-                    alert.setContentText(ex.getMessage());
-                    alert.showAndWait();
-                });
-            }
-        });
+        String ch = row.channelProperty().get();
+        if ("—".equals(ch)) {
+            ch = "";
+        }
+        listenActions.listenSpyTarget(row.getSpyExtension(), ch, row.getAgentName(), statusBar::setText);
     }
 
-    private void showListenError(ListenException ex) {
-        statusBar.setText("Escucha: " + ex.getMessage());
-        Alert.AlertType type = ex.getReason() == ListenException.Reason.AMI_DISABLED
-                || ex.getReason() == ListenException.Reason.AMI_NOT_CONFIGURED
-                ? Alert.AlertType.WARNING
-                : Alert.AlertType.ERROR;
-        Alert alert = new Alert(type);
-        alert.setTitle("Escuchar llamada");
-        if (ex.getReason() == ListenException.Reason.AMI_DISABLED
-                || ex.getReason() == ListenException.Reason.AMI_NOT_CONFIGURED) {
-            alert.setHeaderText("Escucha automática no configurada");
-        } else if (ex.getReason() == ListenException.Reason.AMI_ERROR) {
-            alert.setHeaderText("No se pudo iniciar la escucha automática (AMI)");
-        } else {
-            alert.setHeaderText("No se pudo iniciar la escucha");
+    private TableColumn<QueueMonitorRow, Void> queueListenColumn() {
+        TableColumn<QueueMonitorRow, Void> c = new TableColumn<>("Escuchar");
+        c.setPrefWidth(88);
+        c.setCellFactory(col -> new TableCell<>() {
+            private final Button btn = new Button("Cola");
+
+            {
+                btn.getStyleClass().add("monitor-btn-small");
+                btn.setOnAction(e -> {
+                    QueueMonitorRow row = getTableRow() == null ? null : getTableRow().getItem();
+                    if (row != null) {
+                        listenQueue(row);
+                    }
+                });
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                    return;
+                }
+                QueueMonitorRow row = getTableRow() == null ? null : getTableRow().getItem();
+                boolean hasCalls = row != null && queueHasActiveCalls(row.getQueue());
+                btn.setDisable(!hasCalls);
+                setGraphic(btn);
+            }
+        });
+        return c;
+    }
+
+    private TableColumn<ActiveCallRow, Void> activeCallListenColumn() {
+        TableColumn<ActiveCallRow, Void> c = new TableColumn<>("Escuchar");
+        c.setPrefWidth(88);
+        c.setCellFactory(col -> new TableCell<>() {
+            private final Button btn = new Button("Escuchar");
+
+            {
+                btn.getStyleClass().add("monitor-btn-small");
+                btn.setOnAction(e -> {
+                    ActiveCallRow row = getTableRow() == null ? null : getTableRow().getItem();
+                    if (row != null) {
+                        listenActiveCall(row);
+                    }
+                });
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                    return;
+                }
+                ActiveCallRow row = getTableRow() == null ? null : getTableRow().getItem();
+                setGraphic(btn);
+                btn.setDisable(row == null || resolveSpyForActiveCall(row).isBlank());
+            }
+        });
+        return c;
+    }
+
+    private boolean queueHasActiveCalls(String queue) {
+        if (queue == null || queue.isBlank()) {
+            return false;
         }
-        String body = ex.getMessage();
-        if (ex.getManualDialHint() != null && !ex.getManualDialHint().isBlank()) {
-            body = body + "\n\nAlternativa manual:\n" + ex.getManualDialHint();
+        for (ActiveCallRow c : allActiveCalls) {
+            String q = c.queueProperty().get();
+            if (queue.equals(q)) {
+                return true;
+            }
         }
-        alert.setContentText(body);
-        alert.showAndWait();
+        return false;
+    }
+
+    private void listenQueue(QueueMonitorRow queueRow) {
+        String queue = queueRow.getQueue();
+        for (ActiveCallRow call : allActiveCalls) {
+            if (!queue.equals(call.queueProperty().get())) {
+                continue;
+            }
+            String spy = resolveSpyForActiveCall(call);
+            if (!spy.isBlank()) {
+                listenActions.listenSpyTarget(spy, "", "Cola " + queue + " / " + call.numberProperty().get(),
+                        statusBar::setText);
+                return;
+            }
+        }
+        statusBar.setText("Cola " + queue + ": sin llamada con agente asignado para escuchar");
+    }
+
+    private void listenActiveCall(ActiveCallRow call) {
+        String spy = resolveSpyForActiveCall(call);
+        listenActions.listenSpyTarget(spy, "", "Llamada " + call.numberProperty().get(), statusBar::setText);
+    }
+
+    private String resolveSpyForActiveCall(ActiveCallRow call) {
+        String phone = call.numberProperty().get();
+        String queue = call.queueProperty().get();
+        for (AgentMonitorRow a : allAgents) {
+            if (!SpyTargetUtil.canListen(a.getStatusCode())) {
+                continue;
+            }
+            if (phone != null && phone.equals(a.phoneNumberProperty().get())) {
+                String q = a.activeQueueProperty().get();
+                if (queue == null || "—".equals(queue) || queue.equals(q) || "—".equals(q)) {
+                    return a.getSpyExtension();
+                }
+            }
+        }
+        if (phone != null && phone.matches("\\d{3,15}")) {
+            return phone.trim();
+        }
+        return "";
     }
 
     private static <T> TableColumn<T, String> col(String title,

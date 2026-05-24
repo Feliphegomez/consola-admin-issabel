@@ -15,6 +15,10 @@ public final class AdminDbSettings {
     public String dbHost = "127.0.0.1";
     public int dbPort = 3306;
     public String dbName = "call_center";
+    /** FreePBX/Issabel PBX configuration database (usually {@code asterisk}). */
+    public String pbxDbName = "asterisk";
+    /** Issabel CDR database (usually {@code asteriskcdrdb}). */
+    public String cdrDbName = "asteriskcdrdb";
     public String dbUser = "asterisk";
     public String dbPassword = "";
 
@@ -34,6 +38,8 @@ public final class AdminDbSettings {
         s.dbHost = p.getProperty("dbHost", "127.0.0.1");
         s.dbPort = parseInt(p.getProperty("dbPort", "3306"), 3306);
         s.dbName = p.getProperty("dbName", "call_center");
+        s.pbxDbName = p.getProperty("pbxDbName", "asterisk");
+        s.cdrDbName = p.getProperty("cdrDbName", "asteriskcdrdb");
         s.dbUser = p.getProperty("dbUser", "asterisk");
         s.dbPassword = p.getProperty("dbPassword", "");
         return s;
@@ -45,6 +51,8 @@ public final class AdminDbSettings {
         p.setProperty("dbHost", dbHost == null ? "" : dbHost.trim());
         p.setProperty("dbPort", String.valueOf(dbPort));
         p.setProperty("dbName", dbName == null ? "call_center" : dbName.trim());
+        p.setProperty("pbxDbName", pbxDbName == null || pbxDbName.isBlank() ? "asterisk" : pbxDbName.trim());
+        p.setProperty("cdrDbName", cdrDbName == null || cdrDbName.isBlank() ? "asteriskcdrdb" : cdrDbName.trim());
         p.setProperty("dbUser", dbUser == null ? "" : dbUser.trim());
         if (dbPassword != null && !dbPassword.isEmpty()) {
             p.setProperty("dbPassword", dbPassword);
@@ -68,9 +76,20 @@ public final class AdminDbSettings {
     }
 
     public String jdbcUrl() {
+        return jdbcUrlFor(dbName == null || dbName.isBlank() ? "call_center" : dbName.trim());
+    }
+
+    public String jdbcUrlPbx() {
+        return jdbcUrlFor(pbxDbName == null || pbxDbName.isBlank() ? "asterisk" : pbxDbName.trim());
+    }
+
+    public String jdbcUrlCdr() {
+        return jdbcUrlFor(cdrDbName == null || cdrDbName.isBlank() ? "asteriskcdrdb" : cdrDbName.trim());
+    }
+
+    private String jdbcUrlFor(String database) {
         String host = dbHost == null ? "127.0.0.1" : dbHost.trim();
-        String db = dbName == null || dbName.isBlank() ? "call_center" : dbName.trim();
-        return "jdbc:mariadb://" + host + ":" + dbPort + "/" + db
+        return "jdbc:mariadb://" + host + ":" + dbPort + "/" + database
                 + "?useUnicode=true&characterEncoding=UTF-8";
     }
 

@@ -6,7 +6,11 @@ import dn.demedallo.admin.model.DashboardSnapshot.DashboardCallRow;
 import dn.demedallo.admin.model.QueueMonitorRow;
 import dn.demedallo.admin.protocol.AdminEccpClient;
 import dn.demedallo.admin.service.DashboardService;
+import dn.demedallo.admin.service.ListenUiActions;
+import dn.demedallo.admin.service.PendingDialerService;
+import dn.demedallo.admin.ui.util.TableViewUtil;
 import dn.demedallo.admin.util.AdminDbSettings;
+import dn.demedallo.admin.util.SpyTargetUtil;
 import dn.demedallo.admin.util.AppLogFile;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -14,10 +18,13 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SplitPane;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TitledPane;
@@ -50,6 +57,8 @@ public final class AdminDashboardPane extends BorderPane implements AutoCloseabl
     private static final int SUMMARY_STAT_COUNT = 7;
 
     private final DashboardService service;
+    private final PendingDialerService pendingDialerService;
+    private final ListenUiActions listenActions;
     private final ExecutorService worker = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "admin-dashboard");
         t.setDaemon(true);
@@ -74,8 +83,11 @@ public final class AdminDashboardPane extends BorderPane implements AutoCloseabl
     private Timeline pollTimeline;
     private volatile int loadGeneration;
 
-    public AdminDashboardPane(AdminEccpClient client, AdminDbSettings dbSettings) {
+    public AdminDashboardPane(AdminEccpClient client, AdminDbSettings dbSettings,
+                              ListenUiActions listenActions) {
         this.service = new DashboardService(client, dbSettings);
+        this.pendingDialerService = new PendingDialerService(dbSettings);
+        this.listenActions = listenActions;
         getStyleClass().add("dashboard-pane");
         setPadding(new Insets(10));
 
@@ -182,9 +194,9 @@ public final class AdminDashboardPane extends BorderPane implements AutoCloseabl
     }
 
     private void buildCallTables() {
-        buildCallColumns(incomingTable);
-        buildCallColumns(outgoingTable);
-        buildCallColumns(pendingTable);
+        buildLiveCallColumns(incomingTable);
+        buildLiveCallColumns(outgoingTable);
+        buildPendingColumns(pendingTable);
         prepareDashboardTable(incomingTable);
         prepareDashboardTable(outgoingTable);
         prepareDashboardTable(pendingTable);
@@ -204,20 +216,110 @@ public final class AdminDashboardPane extends BorderPane implements AutoCloseabl
         table.setFixedCellSize(28);
     }
 
-    private static void buildCallColumns(TableView<DashboardCallRow> table) {
-        TableColumn<DashboardCallRow, String> camp = col("Campaña", r -> r.campaign);
+    /** Same fields as Monitoreo → Llamadas activas (full ECCP feed, not per-campaign panels). */
+    private static void buildLiveCallColumns(TableView<DashboardCallRow> table) {
         TableColumn<DashboardCallRow, String> queue = col("Cola", r -> r.queue);
         TableColumn<DashboardCallRow, String> phone = col("Teléfono", r -> r.phone);
         TableColumn<DashboardCallRow, String> status = col("Estado", r -> r.status);
+        TableColumn<DashboardCallRow, String> type = col("Tipo", r -> r.callType);
+        TableColumn<DashboardCallRow, String> callId = col("ID", r -> r.callId);
         TableColumn<DashboardCallRow, String> trunk = col("Troncal", r -> r.trunk);
-        TableColumn<DashboardCallRow, String> detail = col("Detalle", r -> r.detail);
-        camp.setMinWidth(48);
-        queue.setMinWidth(36);
+        TableColumn<DashboardCallRow, String> camp = col("Campaña", r -> r.campaign);
+        queue.setMinWidth(44);
         phone.setMinWidth(56);
         status.setMinWidth(44);
+        type.setMinWidth(40);
+        callId.setMinWidth(36);
         trunk.setMinWidth(40);
-        detail.setMinWidth(40);
-        table.getColumns().addAll(camp, queue, phone, status, trunk, detail);
+        camp.setMinWidth(48);
+        table.getColumns().addAll(queue, phone, status, type, callId, trunk, camp);
+    }
+
+    private void buildPendingColumns(TableView<DashboardCallRow> table) {
+        TableColumn<DashboardCallRow, String> camp = col("Campaña", r -> r.campaign);
+        TableColumn<DashboardCallRow, String> queue = col("Cola / agente", r -> r.queue);
+        TableColumn<DashboardCallRow, String> phone = col("Teléfono", r -> r.phone);
+        TableColumn<DashboardCallRow, String> status = col("Estado", r -> r.status);
+        TableColumn<DashboardCallRow, String> detail = col("Detalle", r -> r.detail);
+        camp.setMinWidth(48);
+        queue.setMinWidth(52);
+        phone.setMinWidth(56);
+        status.setMinWidth(44);
+        detail.setMinWidth(80);
+        table.getColumns().addAll(camp, queue, phone, status, detail);
+        table.getColumns().add(pendingForceColumn());
+    }
+
+    private TableColumn<DashboardCallRow, String> pendingForceColumn() {
+        TableColumn<DashboardCallRow, String> c = new TableColumn<>("Forzar");
+        TableViewUtil.styleColumn(c, 72);
+        c.setCellValueFactory(cd -> new javafx.beans.property.SimpleStringProperty(""));
+        c.setCellFactory(col -> new TableCell<>() {
+            private final Button btn = new Button("Forzar");
+
+            {
+                btn.getStyleClass().add("monitor-btn-small");
+                btn.setOnAction(e -> {
+                    DashboardCallRow row = getTableRow() == null ? null : getTableRow().getItem();
+                    if (row != null && row.pendingCallId > 0) {
+                        confirmForcePending(row);
+                    }
+                });
+            }
+
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                    return;
+                }
+                DashboardCallRow row = getTableRow() == null ? null : getTableRow().getItem();
+                boolean canForce = row != null && row.pendingCallId > 0
+                        && pendingDialerService.isDbEnabled();
+                btn.setDisable(!canForce);
+                setGraphic(canForce ? btn : null);
+            }
+        });
+        return c;
+    }
+
+    private void confirmForcePending(DashboardCallRow row) {
+        if (!pendingDialerService.isDbEnabled()) {
+            statusBar.setText("MySQL no configurado — no se puede forzar.");
+            return;
+        }
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Forzar llamada pendiente");
+        alert.setHeaderText(row.phone + " — " + row.campaign);
+        alert.setContentText("ID llamada: " + row.pendingCallId + "\n\n"
+                + "Se ajustará la ventana de agenda a «ahora» para que el dialer la tome "
+                + "en el próximo ciclo (~3 s).\n\n"
+                + "Nota: si el mismo número ya está marcando o en cola, el dialer puede "
+                + "ignorarla (DialString duplicado).\n\n¿Continuar?");
+        alert.getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
+        alert.showAndWait().ifPresent(bt -> {
+            if (bt == ButtonType.OK) {
+                runForcePending(row.pendingCallId, row.phone);
+            }
+        });
+    }
+
+    private void runForcePending(int callId, String phone) {
+        statusBar.setText("Forzando llamada " + callId + "…");
+        worker.execute(() -> {
+            try {
+                pendingDialerService.forcePendingCall(callId);
+                Platform.runLater(() -> {
+                    statusBar.setText("Llamada " + callId + " (" + phone
+                            + ") forzada — el dialer la marcará si hay canal y agente libre.");
+                    refresh();
+                });
+            } catch (Exception ex) {
+                AppLogFile.appendLine("[dashboard] force pending " + callId + " | EN: " + ex.getMessage());
+                Platform.runLater(() -> statusBar.setText("Error al forzar: " + ex.getMessage()));
+            }
+        });
     }
 
     private static TableColumn<DashboardCallRow, String> col(String title,
@@ -326,7 +428,7 @@ public final class AdminDashboardPane extends BorderPane implements AutoCloseabl
         return comma > 0 ? queues.substring(0, comma).trim() : queues.trim();
     }
 
-    private static VBox buildAgentCard(AgentMonitorRow a) {
+    private VBox buildAgentCard(AgentMonitorRow a) {
         String ext = a.extensionProperty().get();
         if (ext == null || ext.isBlank() || "—".equals(ext)) {
             ext = a.getAgentNumber();
@@ -336,13 +438,27 @@ public final class AdminDashboardPane extends BorderPane implements AutoCloseabl
         String code = a.getStatusCode() == null ? "offline" : a.getStatusCode();
         Label line2 = new Label("Estado: " + a.getStatusLabel());
         line2.getStyleClass().add("dashboard-ext-line2");
-        VBox card;
+        VBox content;
         if ("oncall".equals(code) || "ringing".equals(code)) {
             Label line3 = new Label("Tel: " + a.phoneNumberProperty().get());
             line3.getStyleClass().add("dashboard-ext-line2");
-            card = new VBox(3, line1, line2, line3);
+            content = new VBox(3, line1, line2, line3);
         } else {
-            card = new VBox(3, line1, line2);
+            content = new VBox(3, line1, line2);
+        }
+        VBox card = new VBox(4, content);
+        if (listenActions != null && SpyTargetUtil.canListen(code) && a.isListenAvailable()) {
+            Button listen = new Button("Escuchar");
+            listen.getStyleClass().add("monitor-btn-small");
+            listen.setMaxWidth(Double.MAX_VALUE);
+            listen.setOnAction(e -> {
+                String ch = a.channelProperty().get();
+                if ("—".equals(ch)) {
+                    ch = "";
+                }
+                listenActions.listenSpyTarget(a.getSpyExtension(), ch, a.getAgentName(), statusBar::setText);
+            });
+            card.getChildren().add(listen);
         }
         card.getStyleClass().addAll("dashboard-ext-card", statusStyleClass(code));
         card.setMinWidth(AGENT_CARD_WIDTH);

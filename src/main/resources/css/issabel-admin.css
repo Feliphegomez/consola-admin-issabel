@@ -379,20 +379,82 @@
 }
 
 /* Failed / short calls trace tab */
-.failed-short-calls-pane {
+.panel-hint {
+    -fx-font-size: 11px;
+    -fx-text-fill: #4a5568;
+    -fx-padding: 0 0 4 0;
+}
+
+.failed-short-calls-pane,
+.retry-management-pane,
+.pbx-admin-pane {
     -fx-background-color: #f0f2f5;
 }
 
-.failed-short-calls-pane .monitor-table .column-header {
+.failed-short-calls-pane .monitor-table .column-header,
+.retry-management-pane .monitor-table .column-header {
     -fx-background-color: #555555;
 }
 
-.failed-short-calls-pane .monitor-table .column-header .label {
+.failed-short-calls-pane .monitor-table .column-header .label,
+.retry-management-pane .monitor-table .column-header .label {
     -fx-text-fill: white;
     -fx-font-weight: bold;
 }
 
-.failed-short-calls-pane .monitor-table {
+.failed-short-calls-pane .monitor-table,
+.retry-management-pane .monitor-table {
+    -fx-background-color: #f0f0f0;
+}
+
+.retry-management-pane .monitor-table-scroll {
+    -fx-background-color: transparent;
+}
+
+.retry-management-pane .monitor-table-scroll > .viewport {
+    -fx-background-color: #f0f0f0;
+}
+
+.pbx-admin-pane .pbx-section-title {
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+}
+
+.pbx-admin-pane .pbx-reload-btn.pending {
+    -fx-background-color: #d35400;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+.pbx-admin-pane .pbx-reload-btn.pending:hover {
+    -fx-background-color: #e67e22;
+}
+
+.pbx-delete-btn {
+    -fx-background-color: #c53030;
+    -fx-text-fill: white;
+    -fx-padding: 8 16;
+    -fx-background-radius: 4;
+    -fx-cursor: hand;
+}
+
+.pbx-delete-btn:hover {
+    -fx-background-color: #9b2c2c;
+}
+
+.pbx-time-detail-form .pbx-time-preview {
+    -fx-background-color: #e8eaed;
+    -fx-padding: 8 10 8 10;
+    -fx-font-weight: bold;
+    -fx-background-radius: 4;
+}
+
+.pbx-time-detail-form .panel-hint {
+    -fx-text-fill: #5c6370;
+    -fx-font-size: 11px;
+}
+
+.pbx-admin-pane .monitor-table-scroll > .viewport {
     -fx-background-color: #f0f0f0;
 }
 
@@ -642,4 +704,169 @@
 .dashboard-queue-list > .label {
     -fx-text-fill: #2d3748;
     -fx-font-size: 12px;
+}
+
+.phone-trace-diagnosis {
+    -fx-font-size: 12px;
+    -fx-padding: 6 8 6 8;
+    -fx-background-radius: 4;
+}
+
+.phone-trace-diagnosis-internal {
+    -fx-background-color: #fff3cd;
+    -fx-border-color: #d39e00;
+    -fx-border-width: 0 0 0 4;
+}
+
+.phone-trace-diagnosis-external {
+    -fx-background-color: #f8d7da;
+    -fx-border-color: #c82333;
+    -fx-border-width: 0 0 0 4;
+}
+
+.phone-trace-diagnosis-mixed {
+    -fx-background-color: #e2d5f1;
+    -fx-border-color: #6f42c1;
+    -fx-border-width: 0 0 0 4;
+}
+
+/* Service health monitoring tab */
+.service-health-pane {
+    -fx-background-color: #f7fafc;
+}
+
+.health-host-label {
+    -fx-text-fill: #4a5568;
+    -fx-font-size: 12px;
+}
+
+.health-badge {
+    -fx-padding: 4 12;
+    -fx-background-radius: 12;
+    -fx-font-weight: bold;
+    -fx-font-size: 11px;
+}
+
+.health-badge-ok {
+    -fx-background-color: #c6f6d5;
+    -fx-text-fill: #22543d;
+}
+
+.health-badge-warn {
+    -fx-background-color: #fefcbf;
+    -fx-text-fill: #744210;
+}
+
+.health-badge-err {
+    -fx-background-color: #fed7d7;
+    -fx-text-fill: #742a2a;
+}
+
+.health-table {
+    -fx-background-color: transparent;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+.health-table .column-header,
+.health-table .table-cell {
+    -fx-alignment: CENTER-LEFT;
+    -fx-text-fill: #1a202c;
+}
+
+.health-table .column-header {
+    -fx-background-color: #edf2f7;
+    -fx-font-weight: bold;
+    -fx-padding: 6 10 6 10;
+}
+
+.health-table .table-cell {
+    -fx-padding: 4 10 4 10;
+    -fx-border-color: transparent;
+    -fx-background-color: transparent;
+}
+
+.health-table .table-row-cell {
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.health-table .table-row-cell:odd {
+    -fx-background-color: #fafafa;
+}
+
+.health-table .table-row-cell:filled:hover {
+    -fx-background-color: #ebf4ff;
+}
+
+.health-table .table-row-cell:filled:selected,
+.health-table .table-row-cell:filled:selected:hover {
+    -fx-background-color: #bee3f8;
+}
+
+/* Same fix as .monitor-table: Modena uses light text on hover by default. */
+.health-table .table-row-cell:filled:hover .table-cell,
+.health-table .table-row-cell:filled:selected .table-cell,
+.health-table:focused .table-row-cell:filled:selected .table-cell,
+.health-table:focused .table-row-cell:filled:selected:hover .table-cell {
+    -fx-text-fill: #1a202c;
+    -fx-border-color: transparent;
+    -fx-background-color: transparent;
+}
+
+.health-table .table-row-cell:filled:hover .health-cell-ok,
+.health-table .table-row-cell:filled:selected .health-cell-ok {
+    -fx-text-fill: #22543d;
+}
+
+.health-table .table-row-cell:filled:hover .health-cell-warn,
+.health-table .table-row-cell:filled:selected .health-cell-warn {
+    -fx-text-fill: #744210;
+}
+
+.health-table .table-row-cell:filled:hover .health-cell-err,
+.health-table .table-row-cell:filled:selected .health-cell-err {
+    -fx-text-fill: #c53030;
+}
+
+.health-table .table-cell:selected {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.health-table .table-cell:focused {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.health-cell-ok {
+    -fx-text-fill: #22543d;
+    -fx-font-weight: bold;
+}
+
+.health-cell-warn {
+    -fx-text-fill: #744210;
+    -fx-font-weight: bold;
+}
+
+.health-cell-err {
+    -fx-text-fill: #c53030;
+    -fx-font-weight: bold;
+}
+
+.health-detail, .health-errors {
+    -fx-font-family: "Consolas", "Courier New", monospace;
+    -fx-font-size: 11px;
+    -fx-background-color: white;
+}
+
+.health-charts .chart {
+    -fx-background-color: white;
+    -fx-background-radius: 6;
+    -fx-padding: 6;
+}
+
+.health-pie-chart, .health-line-chart {
+    -fx-background-color: white;
+    -fx-background-radius: 6;
 }

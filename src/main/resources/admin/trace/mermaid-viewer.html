@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8"/>
+    <title>Trazabilidad</title>
+    <script src="mermaid.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 8px;
+            background: #f4f6f9;
+            font-family: "Segoe UI", system-ui, sans-serif;
+            overflow: auto;
+        }
+        #diagram {
+            min-height: 120px;
+        }
+        #diagram svg {
+            max-width: none;
+            height: auto;
+        }
+        #diagram {
+            overflow-x: auto;
+        }
+        .placeholder {
+            color: #5c6570;
+            font-size: 13px;
+            padding: 12px 8px;
+        }
+    </style>
+</head>
+<body>
+<div id="diagram">
+    <p class="placeholder">Seleccione una llamada para ver el diagrama.</p>
+</div>
+<script>
+    mermaid.initialize({
+        startOnLoad: false,
+        theme: 'base',
+        securityLevel: 'loose',
+        flowchart: { curve: 'basis', padding: 12, htmlLabels: true }
+    });
+
+    function renderDiagram(code) {
+        const root = document.getElementById('diagram');
+        root.innerHTML = '';
+        if (!code || !String(code).trim()) {
+            root.innerHTML = '<p class="placeholder">Sin pasos de trazabilidad</p>';
+            return;
+        }
+        const pre = document.createElement('pre');
+        pre.className = 'mermaid';
+        pre.textContent = code;
+        root.appendChild(pre);
+        try {
+            mermaid.run({ nodes: [pre] });
+        } catch (e) {
+            root.innerHTML = '<p class="placeholder">Error al dibujar: ' + e + '</p>';
+        }
+    }
+</script>
+</body>
+</html>

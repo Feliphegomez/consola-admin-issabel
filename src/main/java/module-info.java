@@ -4,6 +4,7 @@ module dn.demedallo.admin {
     requires java.prefs;
     requires javafx.controls;
     requires javafx.graphics;
+    requires javafx.web;
     requires java.xml;
     requires java.sql;
     requires org.mariadb.jdbc;

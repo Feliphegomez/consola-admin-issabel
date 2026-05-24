@@ -34,6 +34,18 @@ public final class TableViewUtil {
     }
 
     /**
+     * Table fills the parent width; columns share extra space (panel tables with export bar).
+     */
+    public static void prepareFillWidth(TableView<?> table) {
+        if (!table.getStyleClass().contains("monitor-table")) {
+            table.getStyleClass().add("monitor-table");
+        }
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        table.setFixedCellSize(32);
+        table.setMaxWidth(Double.MAX_VALUE);
+    }
+
+    /**
      * Table inside scroll pane plus CSV / XLSX / PDF export buttons.
      */
     public static Parent wrapInScrollPane(TableView<?> table) {
@@ -45,7 +57,15 @@ public final class TableViewUtil {
      * TableView only — wrapping in ScrollPane causes duplicate horizontal scrollbars.
      */
     public static Parent wrapInScrollPane(TableView<?> table, String exportBaseName) {
-        ScrollPane scroll = createScrollPane(table);
+        return wrapInScrollPane(table, exportBaseName, false);
+    }
+
+    /**
+     * @param fillViewportWidth when true, table stretches to pane width and columns resize to fit
+     */
+    public static Parent wrapInScrollPane(TableView<?> table, String exportBaseName,
+            boolean fillViewportWidth) {
+        ScrollPane scroll = createScrollPane(table, fillViewportWidth);
         VBox box = new VBox(6, TableExportActions.createExportBar(table, exportBaseName), scroll);
         VBox.setVgrow(scroll, Priority.ALWAYS);
         box.setMaxWidth(Double.MAX_VALUE);
@@ -53,23 +73,34 @@ public final class TableViewUtil {
         return box;
     }
 
-    private static ScrollPane createScrollPane(TableView<?> table) {
-        prepare(table);
+    private static ScrollPane createScrollPane(TableView<?> table, boolean fillViewportWidth) {
+        if (fillViewportWidth) {
+            prepareFillWidth(table);
+        } else {
+            prepare(table);
+        }
         table.setMaxHeight(Double.MAX_VALUE);
         ScrollPane scroll = new ScrollPane(table);
         scroll.setFitToHeight(true);
-        scroll.setFitToWidth(false);
+        scroll.setFitToWidth(fillViewportWidth);
         scroll.setMinViewportWidth(0);
         scroll.setMaxWidth(Double.MAX_VALUE);
         scroll.setMaxHeight(Double.MAX_VALUE);
+        if (fillViewportWidth) {
+            scroll.getStyleClass().add("monitor-table-scroll");
+        }
         return scroll;
     }
 
     public static void styleColumn(TableColumn<?, ?> column, double prefWidth) {
+        styleColumn(column, prefWidth, false);
+    }
+
+    public static void styleColumn(TableColumn<?, ?> column, double prefWidth, boolean grow) {
         double w = Math.max(MIN_COL, prefWidth);
         column.setMinWidth(w);
         column.setPrefWidth(w);
-        column.setMaxWidth(MAX_COL);
+        column.setMaxWidth(grow ? Double.MAX_VALUE : MAX_COL);
         column.setResizable(true);
         column.setStyle("-fx-alignment: CENTER-LEFT;");
     }

@@ -151,7 +151,8 @@ public final class OutgoingCampaignStatsDao {
         int maxRows = Math.max(1, Math.min(limit, 2000));
         String placeholders = String.join(",", campaignIds.stream().map(id -> "?").toList());
         String sql = """
-                SELECT camp.name AS campaign_name,
+                SELECT c.id AS call_id,
+                       camp.name AS campaign_name,
                        IFNULL(c.phone, '') AS phone,
                        IFNULL(c.retries, 0) AS retries,
                        IFNULL(c.agent, '') AS agent,
@@ -178,6 +179,7 @@ public final class OutgoingCampaignStatsDao {
                 while (rs.next()) {
                     IncomingPanelSnapshot.PanelPendingCallRow row =
                             new IncomingPanelSnapshot.PanelPendingCallRow();
+                    row.callId = rs.getInt("call_id");
                     row.campaignName = nullToDash(rs.getString("campaign_name"));
                     row.phone = nullToDash(rs.getString("phone"));
                     row.retries = String.valueOf(rs.getInt("retries"));

@@ -3,6 +3,7 @@ package dn.demedallo.admin.ui.report;
 import dn.demedallo.admin.model.IncomingPanelSnapshot;
 import dn.demedallo.admin.protocol.AdminEccpClient;
 import dn.demedallo.admin.service.OutgoingCampaignsPanelService;
+import dn.demedallo.admin.service.PendingDialerService;
 import dn.demedallo.admin.ui.util.TableViewUtil;
 import dn.demedallo.admin.util.AdminDbSettings;
 import dn.demedallo.admin.util.AppLogFile;
@@ -14,9 +15,12 @@ import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Accordion;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TitledPane;
@@ -44,6 +48,7 @@ public final class OutgoingCampaignsPanelPane extends BorderPane implements Auto
             .node("dn.demedallo.admin.outgoing.panel");
 
     private final OutgoingCampaignsPanelService service;
+    private final PendingDialerService pendingDialerService;
     private final ExecutorService worker = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "outgoing-panel");
         t.setDaemon(true);
@@ -80,6 +85,7 @@ public final class OutgoingCampaignsPanelPane extends BorderPane implements Auto
 
     public OutgoingCampaignsPanelPane(AdminEccpClient client, AdminDbSettings dbSettings) {
         this.service = new OutgoingCampaignsPanelService(client, dbSettings);
+        this.pendingDialerService = new PendingDialerService(dbSettings);
         getStyleClass().add("outgoing-campaign-panel");
         setPadding(new Insets(8));
 
@@ -241,6 +247,75 @@ public final class OutgoingCampaignsPanelPane extends BorderPane implements Auto
         addCol(pendingCallsTable, "Reintentos", 72, r -> r.retries);
         addCol(pendingCallsTable, "Ventana", 160, r -> r.schedule);
         addCol(pendingCallsTable, "Agente", 100, r -> r.agent);
+        pendingCallsTable.getColumns().add(pendingForceColumn());
+    }
+
+    private TableColumn<IncomingPanelSnapshot.PanelPendingCallRow, String> pendingForceColumn() {
+        TableColumn<IncomingPanelSnapshot.PanelPendingCallRow, String> c = new TableColumn<>("Forzar");
+        TableViewUtil.styleColumn(c, 72);
+        c.setCellValueFactory(cd -> new javafx.beans.property.SimpleStringProperty(""));
+        c.setCellFactory(col -> new TableCell<>() {
+            private final Button btn = new Button("Forzar");
+
+            {
+                btn.getStyleClass().add("monitor-btn-small");
+                btn.setOnAction(e -> {
+                    IncomingPanelSnapshot.PanelPendingCallRow row =
+                            getTableRow() == null ? null : getTableRow().getItem();
+                    if (row != null && row.callId > 0) {
+                        confirmForcePending(row);
+                    }
+                });
+            }
+
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                    return;
+                }
+                IncomingPanelSnapshot.PanelPendingCallRow row =
+                        getTableRow() == null ? null : getTableRow().getItem();
+                boolean canForce = row != null && row.callId > 0 && pendingDialerService.isDbEnabled();
+                btn.setDisable(!canForce);
+                setGraphic(canForce ? btn : null);
+            }
+        });
+        return c;
+    }
+
+    private void confirmForcePending(IncomingPanelSnapshot.PanelPendingCallRow row) {
+        if (!pendingDialerService.isDbEnabled()) {
+            status.setText("MySQL no configurado.");
+            return;
+        }
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Forzar llamada pendiente");
+        alert.setHeaderText(row.phone + " — " + row.campaignName);
+        alert.setContentText("ID: " + row.callId + "\n\nAjusta la ventana a «ahora» para el dialer.\n\n¿Continuar?");
+        alert.getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
+        alert.showAndWait().ifPresent(bt -> {
+            if (bt == ButtonType.OK) {
+                runForcePending(row.callId, row.phone);
+            }
+        });
+    }
+
+    private void runForcePending(int callId, String phone) {
+        status.setText("Forzando " + callId + "…");
+        worker.execute(() -> {
+            try {
+                pendingDialerService.forcePendingCall(callId);
+                Platform.runLater(() -> {
+                    status.setText("Forzada " + callId + " (" + phone + ")");
+                    refresh();
+                });
+            } catch (Exception ex) {
+                AppLogFile.appendLine("[outgoing-panel] force " + callId + ": " + ex.getMessage());
+                Platform.runLater(() -> status.setText("Error: " + ex.getMessage()));
+            }
+        });
     }
 
     private void buildAgentsColumns() {

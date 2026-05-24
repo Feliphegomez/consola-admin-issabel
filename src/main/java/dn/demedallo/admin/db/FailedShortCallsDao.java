@@ -3,6 +3,7 @@ package dn.demedallo.admin.db;
 import dn.demedallo.admin.model.CallProgressStepRow;
 import dn.demedallo.admin.model.FailedShortCallRow;
 import dn.demedallo.admin.model.FailedShortCallRow.CallDirection;
+import dn.demedallo.admin.util.CallStatusLabels;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -180,22 +181,7 @@ public final class FailedShortCallsDao {
     }
 
     private static String statusLabel(String status) {
-        if (status == null || status.isBlank()) {
-            return "-";
-        }
-        return switch (status) {
-            case "Failure" -> "Fallo";
-            case "ShortCall" -> "Llamada corta";
-            case "Success" -> "Éxito";
-            case "NoAnswer" -> "No contesta";
-            case "Abandoned" -> "Abandonada";
-            case "Placing" -> "Marcando";
-            case "Ringing" -> "Timbrando";
-            case "OnQueue" -> "En cola";
-            case "OnHold" -> "En espera";
-            case "Hangup" -> "Colgado";
-            default -> status;
-        };
+        return CallStatusLabels.statusLabel(status);
     }
 
     private static String formatFailureCode(Object code) {

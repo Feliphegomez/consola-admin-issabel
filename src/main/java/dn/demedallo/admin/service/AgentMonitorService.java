@@ -32,6 +32,8 @@ import java.util.stream.Collectors;
 public final class AgentMonitorService {
 
     private static final int MAX_CAMPAIGN_STATUS_POLLS = 30;
+    /** Dashboard needs all active calls, not a capped campaign sample. */
+    private static final int DASHBOARD_MAX_CAMPAIGN_STATUS_POLLS = 256;
 
     private final AdminEccpClient client;
 
@@ -40,11 +42,20 @@ public final class AgentMonitorService {
     }
 
     public MonitorSnapshot fetchSnapshot() throws Exception {
+        return fetchSnapshot(MAX_CAMPAIGN_STATUS_POLLS);
+    }
+
+    /** Full ECCP poll for dashboard live call tables (incoming / outgoing). */
+    public MonitorSnapshot fetchSnapshotForDashboard() throws Exception {
+        return fetchSnapshot(DASHBOARD_MAX_CAMPAIGN_STATUS_POLLS);
+    }
+
+    private MonitorSnapshot fetchSnapshot(int maxCampaignPolls) throws Exception {
         String today = LocalDate.now().toString();
         List<AgentMonitorRow> agents = fetchAgents(today);
         List<QueueMonitorRow> queues = new ArrayList<>();
         List<ActiveCallRow> activeCalls = new ArrayList<>();
-        fetchQueuesAndCalls(today, queues, activeCalls);
+        fetchQueuesAndCalls(today, queues, activeCalls, maxCampaignPolls);
         return new MonitorSnapshot(agents, queues, activeCalls);
     }
 
@@ -128,7 +139,8 @@ public final class AgentMonitorService {
     }
 
     private void fetchQueuesAndCalls(String today, List<QueueMonitorRow> queueRows,
-                                     List<ActiveCallRow> allActiveCalls) throws Exception {
+                                     List<ActiveCallRow> allActiveCalls, int maxCampaignPolls)
+            throws Exception {
         Map<String, QueueMonitorRow> byQueue = new LinkedHashMap<>();
         Set<String> polledStandaloneQueues = new LinkedHashSet<>();
 
@@ -136,7 +148,7 @@ public final class AgentMonitorService {
                 client.getCampaignList("active"));
         int polls = 0;
         for (CampaignRef c : campaigns) {
-            if (polls >= MAX_CAMPAIGN_STATUS_POLLS) {
+            if (polls >= maxCampaignPolls) {
                 break;
             }
             if (!"active".equalsIgnoreCase(c.status)) {
@@ -161,7 +173,7 @@ public final class AgentMonitorService {
             if (byQueue.containsKey(q.queue) || polledStandaloneQueues.contains(q.queue)) {
                 continue;
             }
-            if (polls >= MAX_CAMPAIGN_STATUS_POLLS) {
+            if (polls >= maxCampaignPolls) {
                 break;
             }
             try {

@@ -18,11 +18,16 @@ public final class DashboardSnapshot {
     public final List<DashboardCallRow> pendingCalls = new ArrayList<>();
 
     public static final class DashboardCallRow {
-        public String campaign = "—";
+        /** {@code calls.id} for pending dialer rows (0 if unknown). */
+        public int pendingCallId;
         public String queue = "—";
         public String phone = "—";
         public String status = "—";
+        public String callType = "—";
+        public String callId = "—";
         public String trunk = "—";
+        public String campaign = "—";
+        /** Agent channel or extra info (pending dialer rows). */
         public String detail = "—";
     }
 }

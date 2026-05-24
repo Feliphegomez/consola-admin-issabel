@@ -40,6 +40,7 @@ public final class IncomingPanelSnapshot {
 
     /** Outgoing calls not yet placed by the dialer (calls.status IS NULL). */
     public static final class PanelPendingCallRow {
+        public int callId;
         public String campaignName = "-";
         public String phone = "-";
         public String retries = "0";
