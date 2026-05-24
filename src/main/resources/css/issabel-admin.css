@@ -870,3 +870,37 @@
     -fx-background-color: white;
     -fx-background-radius: 6;
 }
+
+/* Live overview (Inicio tab) */
+.live-overview-pane {
+    -fx-background-color: #f7fafc;
+}
+
+.live-metrics-grid {
+    -fx-padding: 0 0 4 0;
+}
+
+.live-metric-tile {
+    -fx-background-color: white;
+    -fx-background-radius: 8;
+    -fx-border-color: #e2e8f0;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
+}
+
+.live-metric-title {
+    -fx-font-size: 11px;
+    -fx-text-fill: #718096;
+}
+
+.live-metric-value {
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2d3748;
+}
+
+.live-trunk-summary {
+    -fx-font-size: 12px;
+    -fx-text-fill: #4a5568;
+    -fx-padding: 8 12;
+}

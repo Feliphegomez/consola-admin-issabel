@@ -6,6 +6,16 @@
 
 **Versión Maven:** `0.4.0-SNAPSHOT` · **jpackage:** `0.4.0` · **Manifiesto:** `consola-admin-issabel/0.4.0.json`
 
+### Pestaña Inicio (vista en vivo)
+
+- Nueva pestaña **Inicio** (primera): métricas ECCP (agentes, llamadas, colas), recursos SSH opcionales, troncales activas, tablas entrantes/salientes en curso.
+- Auto-actualización cada 10 s; botón **Actualizar** manual.
+- Fix carga bloqueada: consulta ECCP ligera (no 256 campañas), refresco sin solapamiento y ECCP/SSH en dos fases.
+
+### Trazabilidad CDR/CEL
+
+- Fix MariaDB/Asterisk sin columna `cel.extra`: detecta la columna vía `information_schema` antes de consultar CEL (evita `1054 Unknown column 'extra'` al seleccionar grabación).
+
 ### Uso de canales
 
 - Pestaña **Uso de canales**: gráfico y tabla de canales activos (estimados desde `asteriskcdrdb.cdr`) con filtros de fecha, hora, intervalo (15/30/60 min) y tecnología (Total, SIP/PJSIP, DAHDI, IAX, Local, H323).

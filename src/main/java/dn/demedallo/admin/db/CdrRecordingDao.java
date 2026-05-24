@@ -23,6 +23,9 @@ public final class CdrRecordingDao {
 
     private static final int MAX_ROWS = 500;
 
+    /** Cached after first CEL query (null = not probed yet). */
+    private static volatile Boolean celHasExtraColumn;
+
     private final AsteriskDb db;
 
     public CdrRecordingDao(AsteriskDb db) {
@@ -57,8 +60,63 @@ public final class CdrRecordingDao {
         if (uniqueid == null || uniqueid.isBlank()) {
             return List.of();
         }
+        try {
+            return queryCelByUniqueid(uniqueid, resolveCelHasExtraColumn());
+        } catch (SQLException ex) {
+            if (isMissingTable(ex)) {
+                return List.of();
+            }
+            throw ex;
+        }
+    }
+
+    private boolean resolveCelHasExtraColumn() throws SQLException {
+        if (celHasExtraColumn != null) {
+            return celHasExtraColumn;
+        }
+        synchronized (CdrRecordingDao.class) {
+            if (celHasExtraColumn != null) {
+                return celHasExtraColumn;
+            }
+            celHasExtraColumn = probeCelHasExtraColumn();
+            return celHasExtraColumn;
+        }
+    }
+
+    private boolean probeCelHasExtraColumn() throws SQLException {
         String sql = """
+                SELECT COUNT(*) AS n
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'cel'
+                  AND COLUMN_NAME = 'extra'
+                """;
+        try (Connection c = db.openCdr();
+             PreparedStatement ps = c.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt("n") > 0;
+            }
+        } catch (SQLException ex) {
+            if (isMissingTable(ex) || isUnknownColumn(ex)) {
+                return false;
+            }
+            throw ex;
+        }
+        return false;
+    }
+
+    private List<CelEventRow> queryCelByUniqueid(String uniqueid, boolean includeExtra) throws SQLException {
+        String sql = includeExtra
+                ? """
                 SELECT eventtype, eventtime, channame, appname, appdata, extra
+                FROM cel
+                WHERE uniqueid = ?
+                ORDER BY eventtime
+                LIMIT 500
+                """
+                : """
+                SELECT eventtype, eventtime, channame, appname, appdata
                 FROM cel
                 WHERE uniqueid = ?
                 ORDER BY eventtime
@@ -76,15 +134,10 @@ public final class CdrRecordingDao {
                             str(rs, "channame"),
                             str(rs, "appname"),
                             str(rs, "appdata"),
-                            str(rs, "extra")));
+                            includeExtra ? str(rs, "extra") : ""));
                 }
                 return rows;
             }
-        } catch (SQLException ex) {
-            if (isMissingTable(ex)) {
-                return List.of();
-            }
-            throw ex;
         }
     }
 
@@ -203,6 +256,16 @@ public final class CdrRecordingDao {
     private static boolean isMissingTable(SQLException ex) {
         String msg = ex.getMessage();
         return msg != null && (msg.contains("doesn't exist") || msg.contains("Unknown table"));
+    }
+
+    private static boolean isUnknownColumn(SQLException ex) {
+        for (SQLException cur = ex; cur != null; cur = cur.getNextException()) {
+            String msg = cur.getMessage();
+            if (msg != null && (msg.contains("Unknown column") || msg.contains("1054"))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String str(ResultSet rs, String column) throws SQLException {

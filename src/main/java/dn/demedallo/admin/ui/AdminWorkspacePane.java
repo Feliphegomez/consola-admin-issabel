@@ -3,6 +3,7 @@ package dn.demedallo.admin.ui;
 import dn.demedallo.admin.report.ReportContext;
 import dn.demedallo.admin.service.CallListenService;
 import dn.demedallo.admin.service.ListenUiActions;
+import dn.demedallo.admin.ui.live.LiveOverviewPane;
 import dn.demedallo.admin.ui.pbx.PbxAdminPane;
 import dn.demedallo.admin.ui.report.CallRecordingsPane;
 import dn.demedallo.admin.ui.report.ChannelUsagePane;
@@ -20,6 +21,7 @@ import java.util.function.Consumer;
 
 public final class AdminWorkspacePane extends BorderPane {
 
+    private final LiveOverviewPane liveOverviewPane;
     private final AdminDashboardPane dashboardPane;
     private final AdminMonitorPane monitorPane;
     private final RetryManagementPane retryManagementPane;
@@ -38,6 +40,7 @@ public final class AdminWorkspacePane extends BorderPane {
         ReportContext ctx = new ReportContext(client, monitorSettings, dbSettings);
         CallListenService listenService = new CallListenService(monitorSettings);
         ListenUiActions listenActions = new ListenUiActions(monitorSettings, listenService);
+        this.liveOverviewPane = new LiveOverviewPane(client, dbSettings, eccpHost);
         this.dashboardPane = new AdminDashboardPane(client, dbSettings, listenActions);
         this.monitorPane = new AdminMonitorPane(client, monitorSettings, dbSettings, onLogout, listenActions);
         this.retryManagementPane = new RetryManagementPane(dbSettings);
@@ -53,6 +56,7 @@ public final class AdminWorkspacePane extends BorderPane {
         TabPane root = new TabPane();
         root.getStyleClass().add("monitor-tabs");
         root.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        Tab inicio = new Tab("Inicio", liveOverviewPane);
         Tab dash = new Tab("Dashboard", dashboardPane);
         Tab services = new Tab("Monitoreo de servicios", serviceMonitoringPane);
         Tab channelUsage = new Tab("Uso de canales", channelUsagePane);
@@ -64,7 +68,7 @@ public final class AdminWorkspacePane extends BorderPane {
         Tab rep = new Tab("Informes", reportsPane);
         Tab logs = new Tab("Logs Issabel", logsPane);
         Tab pbx = new Tab("Asterisk / PBX", pbxAdminPane);
-        root.getTabs().addAll(dash, services, mon, retry, traceSearch, recordings, campData, rep, pbx, logs);
+        root.getTabs().addAll(inicio, dash, services, channelUsage, mon, retry, traceSearch, recordings, campData, rep, pbx, logs);
 
         setCenter(root);
         setPadding(new Insets(0));
@@ -72,6 +76,10 @@ public final class AdminWorkspacePane extends BorderPane {
     }
 
     public void shutdown() {
+        try {
+            liveOverviewPane.close();
+        } catch (Exception ignored) {
+        }
         dashboardPane.shutdown();
         monitorPane.shutdown();
         try {

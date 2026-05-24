@@ -34,6 +34,25 @@ public final class DashboardService {
         this.outgoingService = new OutgoingCampaignsPanelService(client, dbSettings);
     }
 
+    /**
+     * Single ECCP monitor poll — agents, queues and active calls (no campaign-panel merge).
+     */
+    public DashboardSnapshot loadFromMonitorSnapshot(MonitorSnapshot mon) {
+        DashboardSnapshot snap = new DashboardSnapshot();
+        snap.agents.addAll(mon.agents());
+        snap.queues.addAll(mon.queues());
+        countAgents(snap, mon.agents());
+
+        List<DashboardCallRow> incoming = new ArrayList<>();
+        List<DashboardCallRow> outgoing = new ArrayList<>();
+        collectLiveCalls(incoming, outgoing, mon.activeCalls(), mon.agents());
+        incoming.sort(liveCallComparator());
+        outgoing.sort(liveCallComparator());
+        snap.incomingCalls.addAll(incoming);
+        snap.outgoingCalls.addAll(outgoing);
+        return snap;
+    }
+
     public DashboardSnapshot load() throws Exception {
         ShiftDatetimeRange range = ShiftDatetimeRange.ofHours(0, 23);
         DashboardSnapshot snap = new DashboardSnapshot();
