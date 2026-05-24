@@ -4,6 +4,7 @@ import dn.demedallo.admin.report.DbReportService;
 import dn.demedallo.admin.report.ReportId;
 import dn.demedallo.admin.report.ReportQueryParams;
 import dn.demedallo.admin.report.ReportTableData;
+import dn.demedallo.admin.ui.util.DateRangeFilterPane;
 import dn.demedallo.admin.ui.util.TableViewUtil;
 import dn.demedallo.admin.util.AppLogFile;
 import javafx.application.Platform;
@@ -12,7 +13,6 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -34,8 +34,7 @@ public final class HistoricalReportPane extends BorderPane implements AutoClosea
     private final boolean dbConfigured;
     private final ExecutorService worker;
 
-    private final DatePicker dateFrom = new DatePicker(LocalDate.now());
-    private final DatePicker dateTo = new DatePicker(LocalDate.now());
+    private final DateRangeFilterPane dateFilter = new DateRangeFilterPane();
     private final ComboBox<String> tipoCombo = new ComboBox<>(FXCollections.observableArrayList("E", "S"));
     private final ComboBox<String> estadoCombo = new ComboBox<>(FXCollections.observableArrayList("T", "E", "A", "N"));
     private final ComboBox<String> callTypeCombo = new ComboBox<>(FXCollections.observableArrayList("incoming", "outgoing"));
@@ -66,7 +65,7 @@ public final class HistoricalReportPane extends BorderPane implements AutoClosea
         run.getStyleClass().add("monitor-btn");
         run.setOnAction(e -> generate());
 
-        HBox filters = new HBox(10, new Label("Desde:"), dateFrom, new Label("Hasta:"), dateTo);
+        HBox filters = new HBox(10, dateFilter);
         if (reportId == ReportId.CALLS_PER_HOUR || reportId == ReportId.GRAPHIC_CALLS) {
             tipoCombo.setPromptText("E/S");
             estadoCombo.setPromptText("Estado");
@@ -95,12 +94,13 @@ public final class HistoricalReportPane extends BorderPane implements AutoClosea
             status.setText("Base de datos no configurada.");
             return;
         }
-        LocalDate from = dateFrom.getValue();
-        LocalDate to = dateTo.getValue();
-        if (from == null || to == null) {
-            status.setText("Seleccione fechas válidas.");
+        String dateErr = dateFilter.validate();
+        if (dateErr != null) {
+            status.setText(dateErr);
             return;
         }
+        LocalDate from = dateFilter.getFrom();
+        LocalDate to = dateFilter.getTo();
         if (to.isBefore(from)) {
             LocalDate t = from;
             from = to;

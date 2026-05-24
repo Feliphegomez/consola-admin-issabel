@@ -3,6 +3,7 @@ package dn.demedallo.admin.ui;
 import dn.demedallo.admin.report.CampaignDataService;
 import dn.demedallo.admin.report.ReportContext;
 import dn.demedallo.admin.report.ReportTableData;
+import dn.demedallo.admin.ui.util.DateRangeFilterPane;
 import dn.demedallo.admin.ui.util.TableViewUtil;
 import dn.demedallo.admin.util.AppLogFile;
 import javafx.application.Platform;
@@ -11,7 +12,6 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableColumn;
@@ -44,8 +44,7 @@ public final class CampaignDataBrowserPane extends BorderPane implements AutoClo
     private final ComboBox<String> typeCombo = new ComboBox<>(
             FXCollections.observableArrayList("Saliente", "Entrante"));
     private final ComboBox<CampaignDataService.CampaignOption> campaignCombo = new ComboBox<>();
-    private final DatePicker dateFrom = new DatePicker(LocalDate.now());
-    private final DatePicker dateTo = new DatePicker(LocalDate.now());
+    private final DateRangeFilterPane dateFilter = new DateRangeFilterPane();
     private final TextField phoneFilter = new TextField();
     private final Label status = new Label();
     private final Label callDetail = new Label();
@@ -74,8 +73,7 @@ public final class CampaignDataBrowserPane extends BorderPane implements AutoClo
         HBox filters = new HBox(10,
                 new Label("Tipo:"), typeCombo,
                 new Label("Campaña:"), campaignCombo,
-                new Label("Desde:"), dateFrom,
-                new Label("Hasta:"), dateTo,
+                dateFilter,
                 new Label("Teléfono:"), phoneFilter,
                 search);
         filters.setAlignment(Pos.CENTER_LEFT);
@@ -147,12 +145,13 @@ public final class CampaignDataBrowserPane extends BorderPane implements AutoClo
             status.setText("Seleccione una campaña.");
             return;
         }
-        LocalDate from = dateFrom.getValue();
-        LocalDate to = dateTo.getValue();
-        if (from == null || to == null) {
-            status.setText("Seleccione fechas válidas.");
+        String dateErr = dateFilter.validate();
+        if (dateErr != null) {
+            status.setText(dateErr);
             return;
         }
+        LocalDate from = dateFilter.getFrom();
+        LocalDate to = dateFilter.getTo();
         if (to.isBefore(from)) {
             LocalDate swap = from;
             from = to;

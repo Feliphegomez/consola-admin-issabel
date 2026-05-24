@@ -4,6 +4,7 @@ import dn.demedallo.admin.report.DbReportService;
 import dn.demedallo.admin.report.ReportId;
 import dn.demedallo.admin.report.ReportQueryParams;
 import dn.demedallo.admin.report.ReportTableData;
+import dn.demedallo.admin.ui.util.DateRangeFilterPane;
 import dn.demedallo.admin.ui.util.TableViewUtil;
 import dn.demedallo.admin.util.AppLogFile;
 import javafx.application.Platform;
@@ -12,7 +13,6 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -34,8 +34,7 @@ public final class FormDataViewerPane extends BorderPane implements AutoCloseabl
     private final boolean dbConfigured;
     private final ExecutorService worker;
 
-    private final DatePicker dateFrom = new DatePicker(LocalDate.now());
-    private final DatePicker dateTo = new DatePicker(LocalDate.now());
+    private final DateRangeFilterPane dateFilter = new DateRangeFilterPane();
     private final ComboBox<String> tipoCombo = new ComboBox<>(
             FXCollections.observableArrayList("Ambos", "Entrante", "Saliente"));
     private final TextField campaignFilter = new TextField();
@@ -66,8 +65,7 @@ public final class FormDataViewerPane extends BorderPane implements AutoCloseabl
         run.setOnAction(e -> generate());
 
         HBox filters = new HBox(10,
-                new Label("Desde:"), dateFrom,
-                new Label("Hasta:"), dateTo,
+                dateFilter,
                 new Label("Tipo:"), tipoCombo,
                 new Label("Campaña:"), campaignFilter,
                 run);
@@ -90,12 +88,13 @@ public final class FormDataViewerPane extends BorderPane implements AutoCloseabl
             status.setText("Base de datos no configurada.");
             return;
         }
-        LocalDate from = dateFrom.getValue();
-        LocalDate to = dateTo.getValue();
-        if (from == null || to == null) {
-            status.setText("Seleccione fechas válidas.");
+        String dateErr = dateFilter.validate();
+        if (dateErr != null) {
+            status.setText(dateErr);
             return;
         }
+        LocalDate from = dateFilter.getFrom();
+        LocalDate to = dateFilter.getTo();
         if (to.isBefore(from)) {
             LocalDate swap = from;
             from = to;
