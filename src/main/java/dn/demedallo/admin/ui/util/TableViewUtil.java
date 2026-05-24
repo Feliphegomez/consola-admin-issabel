@@ -43,6 +43,25 @@ public final class TableViewUtil {
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         table.setFixedCellSize(32);
         table.setMaxWidth(Double.MAX_VALUE);
+        table.setMinWidth(0);
+    }
+
+    /**
+     * Applies resize policy and sensible column widths; last column grows when {@code fillViewportWidth}.
+     */
+    @SuppressWarnings("unchecked")
+    public static void applyStandardColumns(TableView<?> table, boolean fillViewportWidth) {
+        if (fillViewportWidth) {
+            prepareFillWidth(table);
+        } else {
+            prepare(table);
+        }
+        int n = table.getColumns().size();
+        for (int i = 0; i < n; i++) {
+            TableColumn<?, ?> col = (TableColumn<?, ?>) table.getColumns().get(i);
+            String header = col.getText() == null ? "" : col.getText();
+            styleColumn(col, widthForText(header), fillViewportWidth && i == n - 1);
+        }
     }
 
     /**
@@ -86,9 +105,7 @@ public final class TableViewUtil {
         scroll.setMinViewportWidth(0);
         scroll.setMaxWidth(Double.MAX_VALUE);
         scroll.setMaxHeight(Double.MAX_VALUE);
-        if (fillViewportWidth) {
-            scroll.getStyleClass().add("monitor-table-scroll");
-        }
+        scroll.getStyleClass().add(fillViewportWidth ? "monitor-table-scroll-fill" : "monitor-table-scroll");
         return scroll;
     }
 

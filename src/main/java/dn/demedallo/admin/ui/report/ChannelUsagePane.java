@@ -1,7 +1,9 @@
 package dn.demedallo.admin.ui.report;
 
 import dn.demedallo.admin.model.ChannelUsageBucket;
+import dn.demedallo.admin.model.ChannelUsageDayPeak;
 import dn.demedallo.admin.service.ChannelUsageService;
+import dn.demedallo.admin.service.ChannelUsageService.PeakMetric;
 import dn.demedallo.admin.ui.util.TableViewUtil;
 import dn.demedallo.admin.util.AdminDbSettings;
 import dn.demedallo.admin.util.ShiftDatetimeRange;
@@ -29,9 +31,11 @@ import javafx.scene.control.TableView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -43,6 +47,13 @@ public final class ChannelUsagePane extends BorderPane implements AutoCloseable 
 
     private static final String[] INTERVAL_LABELS = {"15 min", "30 min", "60 min"};
     private static final int[] INTERVAL_MINUTES = {15, 30, 60};
+    private static final String[] PEAK_METRIC_LABELS = {
+            "Total", "SIP / PJSIP", "DAHDI", "IAX", "Local", "H323"
+    };
+    private static final PeakMetric[] PEAK_METRICS = {
+            PeakMetric.TOTAL, PeakMetric.SIP, PeakMetric.DAHDI,
+            PeakMetric.IAX, PeakMetric.LOCAL, PeakMetric.H323
+    };
 
     private final ChannelUsageService service;
     private final ExecutorService worker = Executors.newSingleThreadExecutor(r -> {
@@ -56,6 +67,9 @@ public final class ChannelUsagePane extends BorderPane implements AutoCloseable 
     private final Spinner<Integer> hourFrom = hourSpinner(0);
     private final Spinner<Integer> hourTo = hourSpinner(23);
     private final ComboBox<String> intervalCombo = new ComboBox<>();
+    private final Spinner<Integer> thresholdSpinner = new Spinner<>(
+            new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 999, 20));
+    private final ComboBox<String> peakMetricCombo = new ComboBox<>();
     private final CheckBox showTotal = techCheck("Total", true);
     private final CheckBox showSip = techCheck("SIP / PJSIP", true);
     private final CheckBox showDahdi = techCheck("DAHDI", true);
@@ -72,10 +86,14 @@ public final class ChannelUsagePane extends BorderPane implements AutoCloseable 
     private final XYChart.Series<String, Number> seriesLocal = new XYChart.Series<>();
     private final XYChart.Series<String, Number> seriesH323 = new XYChart.Series<>();
 
-    private final TableView<ChannelUsageBucket> table =
+    private final TableView<ChannelUsageBucket> intervalTable =
             new TableView<>(FXCollections.observableArrayList());
+    private final TableView<ChannelUsageDayPeak> dayTable =
+            new TableView<>(FXCollections.observableArrayList());
+    private final StackPane tableStack = new StackPane();
 
     private volatile int searchGeneration;
+    private volatile boolean daySearchMode;
 
     public ChannelUsagePane(AdminDbSettings dbSettings) {
         this.service = new ChannelUsageService(dbSettings);
@@ -84,11 +102,19 @@ public final class ChannelUsagePane extends BorderPane implements AutoCloseable 
 
         intervalCombo.getItems().addAll(INTERVAL_LABELS);
         intervalCombo.setValue("30 min");
+        peakMetricCombo.getItems().addAll(PEAK_METRIC_LABELS);
+        peakMetricCombo.setValue("Total");
+        thresholdSpinner.setEditable(true);
+        thresholdSpinner.setPrefWidth(72);
 
         Button search = new Button("Generar gráfico");
         search.getStyleClass().add("monitor-btn");
         search.setDefaultButton(true);
         search.setOnAction(e -> runSearch());
+
+        Button searchDays = new Button("Buscar días ≥ umbral");
+        searchDays.getStyleClass().add("monitor-btn");
+        searchDays.setOnAction(e -> runDayThresholdSearch());
 
         Button today = new Button("Hoy");
         today.getStyleClass().add("monitor-btn");
@@ -111,12 +137,17 @@ public final class ChannelUsagePane extends BorderPane implements AutoCloseable 
         HBox techFilters = new HBox(10, showTotal, showSip, showDahdi, showIax, showLocal, showH323);
         techFilters.setAlignment(Pos.CENTER_LEFT);
 
-        HBox actions = new HBox(8, search, today, new Label("Intervalo"), intervalCombo);
+        HBox actions = new HBox(8,
+                search, searchDays, today,
+                new Label("Intervalo"), intervalCombo,
+                new Label("Umbral ≥"), thresholdSpinner,
+                new Label("Métrica"), peakMetricCombo);
         actions.setAlignment(Pos.CENTER_LEFT);
 
         Label hint = new Label(
                 "Estimación de canales activos desde CDR (cada llamada cuenta canal y destino). "
-                        + "Requiere base CDR en login (asteriskcdrdb).");
+                        + "«Generar gráfico» muestra intervalos del rango; «Buscar días ≥ umbral» lista cada día "
+                        + "cuyo pico cumple el filtro (máx. 90 días). Doble clic en un día abre su gráfico horario.");
         hint.setWrapText(true);
         hint.getStyleClass().add("channel-usage-hint");
 
@@ -126,7 +157,8 @@ public final class ChannelUsagePane extends BorderPane implements AutoCloseable 
         VBox filters = new VBox(6, dates, techFilters, actions, hint, status);
         filters.setPadding(new Insets(0, 0, 8, 0));
 
-        configureTable();
+        configureIntervalTable();
+        configureDayTable();
         configureChartSeries();
         showTotal.selectedProperty().addListener((o, a, b) -> refreshChartVisibility());
         showSip.selectedProperty().addListener((o, a, b) -> refreshChartVisibility());
@@ -135,11 +167,26 @@ public final class ChannelUsagePane extends BorderPane implements AutoCloseable 
         showLocal.selectedProperty().addListener((o, a, b) -> refreshChartVisibility());
         showH323.selectedProperty().addListener((o, a, b) -> refreshChartVisibility());
 
-        javafx.scene.Parent tablePanel = TableViewUtil.wrapInScrollPane(table, "uso-canales", true);
+        javafx.scene.Parent intervalPanel =
+                TableViewUtil.wrapInScrollPane(intervalTable, "uso-canales-intervalos", true);
+        javafx.scene.Parent dayPanel =
+                TableViewUtil.wrapInScrollPane(dayTable, "uso-canales-dias", true);
+        dayTable.setVisible(false);
+        dayTable.setManaged(false);
+        tableStack.getChildren().addAll(intervalPanel, dayPanel);
+
+        dayTable.setOnMouseClicked(ev -> {
+            if (ev.getClickCount() == 2) {
+                ChannelUsageDayPeak row = dayTable.getSelectionModel().getSelectedItem();
+                if (row != null) {
+                    openDayChart(row.date());
+                }
+            }
+        });
 
         SplitPane split = new SplitPane();
         split.setOrientation(javafx.geometry.Orientation.VERTICAL);
-        split.getItems().addAll(chart, tablePanel);
+        split.getItems().addAll(chart, tableStack);
         split.setDividerPositions(0.55);
         VBox.setVgrow(split, Priority.ALWAYS);
 
@@ -209,31 +256,92 @@ public final class ChannelUsagePane extends BorderPane implements AutoCloseable 
         }
     }
 
-    private void configureTable() {
-        table.setPlaceholder(new Label("Seleccione rango y pulse «Generar gráfico»."));
-        table.getStyleClass().add("monitor-table");
+    private void configureIntervalTable() {
+        intervalTable.setPlaceholder(new Label("Seleccione rango y pulse «Generar gráfico»."));
+        intervalTable.getStyleClass().add("monitor-table");
 
         TableColumn<ChannelUsageBucket, String> timeCol = new TableColumn<>("Hora");
         timeCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().timeLabel()));
         timeCol.setPrefWidth(80);
 
-        TableColumn<ChannelUsageBucket, Number> totalCol = colInt("Total", ChannelUsageBucket::total);
-        TableColumn<ChannelUsageBucket, Number> sipCol = colInt("SIP", ChannelUsageBucket::sip);
-        TableColumn<ChannelUsageBucket, Number> dahdiCol = colInt("DAHDI", ChannelUsageBucket::dahdi);
-        TableColumn<ChannelUsageBucket, Number> iaxCol = colInt("IAX", ChannelUsageBucket::iax);
-        TableColumn<ChannelUsageBucket, Number> localCol = colInt("Local", ChannelUsageBucket::local);
-        TableColumn<ChannelUsageBucket, Number> h323Col = colInt("H323", ChannelUsageBucket::h323);
-
-        table.getColumns().addAll(timeCol, totalCol, sipCol, dahdiCol, iaxCol, localCol, h323Col);
-        TableViewUtil.prepare(table);
+        intervalTable.getColumns().addAll(timeCol,
+                bucketCol("Total", ChannelUsageBucket::total),
+                bucketCol("SIP", ChannelUsageBucket::sip),
+                bucketCol("DAHDI", ChannelUsageBucket::dahdi),
+                bucketCol("IAX", ChannelUsageBucket::iax),
+                bucketCol("Local", ChannelUsageBucket::local),
+                bucketCol("H323", ChannelUsageBucket::h323));
+        TableViewUtil.applyStandardColumns(intervalTable, true);
     }
 
-    private static TableColumn<ChannelUsageBucket, Number> colInt(String title,
+    private void configureDayTable() {
+        dayTable.setPlaceholder(new Label("Pulse «Buscar días ≥ umbral» para listar fechas que cumplen el filtro."));
+        dayTable.getStyleClass().add("monitor-table");
+
+        TableColumn<ChannelUsageDayPeak, String> dateCol = new TableColumn<>("Día");
+        dateCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().dateLabel()));
+        dateCol.setPrefWidth(100);
+
+        TableColumn<ChannelUsageDayPeak, Number> peakCol = new TableColumn<>("Pico filtro");
+        peakCol.setCellValueFactory(c -> new SimpleIntegerProperty(c.getValue().peakFiltered()));
+        peakCol.setPrefWidth(80);
+
+        TableColumn<ChannelUsageDayPeak, String> timeCol = new TableColumn<>("Hora pico");
+        timeCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().peakTimeLabel()));
+        timeCol.setPrefWidth(80);
+
+        dayTable.getColumns().addAll(dateCol, peakCol, timeCol,
+                dayCol("Total", ChannelUsageDayPeak::totalPeak),
+                dayCol("SIP", ChannelUsageDayPeak::sipPeak),
+                dayCol("DAHDI", ChannelUsageDayPeak::dahdiPeak),
+                dayCol("IAX", ChannelUsageDayPeak::iaxPeak),
+                dayCol("Local", ChannelUsageDayPeak::localPeak),
+                dayCol("H323", ChannelUsageDayPeak::h323Peak));
+        TableViewUtil.applyStandardColumns(dayTable, true);
+    }
+
+    private static TableColumn<ChannelUsageBucket, Number> bucketCol(String title,
             java.util.function.ToIntFunction<ChannelUsageBucket> getter) {
         TableColumn<ChannelUsageBucket, Number> col = new TableColumn<>(title);
         col.setCellValueFactory(c -> new SimpleIntegerProperty(getter.applyAsInt(c.getValue())));
         col.setPrefWidth(72);
         return col;
+    }
+
+    private static TableColumn<ChannelUsageDayPeak, Number> dayCol(String title,
+            java.util.function.ToIntFunction<ChannelUsageDayPeak> getter) {
+        TableColumn<ChannelUsageDayPeak, Number> col = new TableColumn<>(title);
+        col.setCellValueFactory(c -> new SimpleIntegerProperty(getter.applyAsInt(c.getValue())));
+        col.setPrefWidth(68);
+        return col;
+    }
+
+    private void showIntervalTableMode() {
+        daySearchMode = false;
+        intervalTable.setVisible(true);
+        intervalTable.setManaged(true);
+        dayTable.setVisible(false);
+        dayTable.setManaged(false);
+        chart.setTitle("Uso de canales (estimado desde CDR)");
+        CategoryAxis xAxis = (CategoryAxis) chart.getXAxis();
+        xAxis.setLabel("Hora (fin de intervalo)");
+    }
+
+    private void showDayTableMode() {
+        daySearchMode = true;
+        intervalTable.setVisible(false);
+        intervalTable.setManaged(false);
+        dayTable.setVisible(true);
+        dayTable.setManaged(true);
+        chart.setTitle("Días que cumplen el umbral (pico por día)");
+        CategoryAxis xAxis = (CategoryAxis) chart.getXAxis();
+        xAxis.setLabel("Día");
+    }
+
+    private void openDayChart(LocalDate day) {
+        dateFrom.setValue(day);
+        dateTo.setValue(day);
+        runSearch();
     }
 
     private void runSearch() {
@@ -261,7 +369,8 @@ public final class ChannelUsagePane extends BorderPane implements AutoCloseable 
         int intervalMin = intervalMinutes();
         int gen = ++searchGeneration;
         status.setText("Calculando uso de canales…");
-        table.setPlaceholder(new Label("Calculando…"));
+        intervalTable.setPlaceholder(new Label("Calculando…"));
+        showIntervalTableMode();
 
         worker.execute(() -> {
             try {
@@ -279,10 +388,124 @@ public final class ChannelUsagePane extends BorderPane implements AutoCloseable 
                         return;
                     }
                     status.setText("Error: " + ex.getMessage());
-                    table.setPlaceholder(new Label("Error al cargar datos."));
+                    intervalTable.setPlaceholder(new Label("Error al cargar datos."));
                 });
             }
         });
+    }
+
+    private void runDayThresholdSearch() {
+        LocalDate from = dateFrom.getValue();
+        LocalDate to = dateTo.getValue();
+        if (from == null || to == null) {
+            status.setText("Indique fechas válidas.");
+            return;
+        }
+        if (to.isBefore(from)) {
+            status.setText("«Hasta» no puede ser anterior a «Desde».");
+            return;
+        }
+        long dayCount = ChronoUnit.DAYS.between(from, to) + 1;
+        if (dayCount > 90) {
+            status.setText("La búsqueda de días admite como máximo 90 días.");
+            return;
+        }
+        int hFrom = hourFrom.getValue() == null ? 0 : hourFrom.getValue();
+        int hTo = hourTo.getValue() == null ? 23 : hourTo.getValue();
+        if (hFrom < 0 || hFrom > 23 || hTo < 0 || hTo > 23) {
+            status.setText("Horas deben estar entre 0 y 23.");
+            return;
+        }
+        int threshold = thresholdSpinner.getValue() == null ? 20 : thresholdSpinner.getValue();
+        PeakMetric metric = peakMetric();
+        int intervalMin = intervalMinutes();
+        int gen = ++searchGeneration;
+        status.setText("Buscando días con pico " + metricLabel(metric) + " ≥ " + threshold + "…");
+        dayTable.setPlaceholder(new Label("Analizando " + dayCount + " día(s)…"));
+        showDayTableMode();
+
+        worker.execute(() -> {
+            try {
+                List<ChannelUsageDayPeak> matchingDays = service.findDaysMeetingThreshold(
+                        from, to, hFrom, hTo, intervalMin, threshold, metric);
+                Platform.runLater(() -> {
+                    if (gen != searchGeneration) {
+                        return;
+                    }
+                    applyDayResult(matchingDays, from, to, threshold, metric, intervalMin);
+                });
+            } catch (Exception ex) {
+                Platform.runLater(() -> {
+                    if (gen != searchGeneration) {
+                        return;
+                    }
+                    status.setText("Error: " + ex.getMessage());
+                    dayTable.setPlaceholder(new Label("Error en búsqueda de días."));
+                });
+            }
+        });
+    }
+
+    private PeakMetric peakMetric() {
+        String sel = peakMetricCombo.getValue();
+        for (int i = 0; i < PEAK_METRIC_LABELS.length; i++) {
+            if (PEAK_METRIC_LABELS[i].equals(sel)) {
+                return PEAK_METRICS[i];
+            }
+        }
+        return PeakMetric.TOTAL;
+    }
+
+    private static String metricLabel(PeakMetric metric) {
+        return switch (metric) {
+            case SIP -> "SIP";
+            case DAHDI -> "DAHDI";
+            case IAX -> "IAX";
+            case LOCAL -> "Local";
+            case H323 -> "H323";
+            case TOTAL -> "Total";
+        };
+    }
+
+    private void applyDayResult(List<ChannelUsageDayPeak> days, LocalDate from, LocalDate to,
+            int threshold, PeakMetric metric, int intervalMin) {
+        dayTable.getItems().setAll(days);
+        seriesTotal.getData().clear();
+        seriesSip.getData().clear();
+        seriesDahdi.getData().clear();
+        seriesIax.getData().clear();
+        seriesLocal.getData().clear();
+        seriesH323.getData().clear();
+
+        XYChart.Series<String, Number> peakSeries = seriesForMetric(metric);
+        for (ChannelUsageDayPeak d : days) {
+            peakSeries.getData().add(new XYChart.Data<>(d.dateLabel(), d.peakFiltered()));
+        }
+
+        long scanned = ChronoUnit.DAYS.between(from, to) + 1;
+        if (days.isEmpty()) {
+            status.setText("Ningún día con pico " + metricLabel(metric) + " ≥ " + threshold
+                    + " entre " + from + " y " + to + " (" + scanned + " días analizados, ventana "
+                    + intervalMin + " min).");
+            dayTable.setPlaceholder(new Label("Ningún día cumple el umbral."));
+        } else {
+            status.setText(days.size() + " día(s) con pico " + metricLabel(metric) + " ≥ " + threshold
+                    + " · " + scanned + " analizados · doble clic abre el gráfico del día.");
+            dayTable.setPlaceholder(new Label("Sin coincidencias."));
+        }
+        chart.getData().clear();
+        chart.getData().add(seriesForMetric(metric));
+    }
+
+    private XYChart.Series<String, Number> seriesForMetric(PeakMetric metric) {
+        return switch (metric) {
+            case SIP -> seriesSip;
+            case DAHDI -> seriesDahdi;
+            case IAX -> seriesIax;
+            case LOCAL -> seriesLocal;
+            case H323 -> seriesH323;
+            case TOTAL -> seriesTotal;
+        };
     }
 
     private int intervalMinutes() {
@@ -296,7 +519,10 @@ public final class ChannelUsagePane extends BorderPane implements AutoCloseable 
     }
 
     private void applyResult(List<ChannelUsageBucket> buckets, String rangeLabel, int intervalMin) {
-        table.getItems().setAll(buckets);
+        if (daySearchMode) {
+            showIntervalTableMode();
+        }
+        intervalTable.getItems().setAll(buckets);
         seriesTotal.getData().clear();
         seriesSip.getData().clear();
         seriesDahdi.getData().clear();
@@ -317,11 +543,11 @@ public final class ChannelUsagePane extends BorderPane implements AutoCloseable 
 
         if (buckets.isEmpty()) {
             status.setText("Sin datos CDR en " + rangeLabel + " (intervalo " + intervalMin + " min).");
-            table.setPlaceholder(new Label("Sin datos en el rango seleccionado."));
+            intervalTable.setPlaceholder(new Label("Sin datos en el rango seleccionado."));
         } else {
             status.setText(buckets.size() + " intervalos · pico Total " + maxTotal
                     + " canales · " + rangeLabel + " · intervalo " + intervalMin + " min.");
-            table.setPlaceholder(new Label("Sin datos."));
+            intervalTable.setPlaceholder(new Label("Sin datos."));
         }
         refreshChartVisibility();
     }

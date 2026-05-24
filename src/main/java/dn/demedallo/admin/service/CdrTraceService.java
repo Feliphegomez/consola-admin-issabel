@@ -33,8 +33,10 @@ public final class CdrTraceService {
         }
         CdrCallDetail detail = cdrDao.loadByUniqueid(call.uniqueid);
         List<CelEventRow> cel = List.of();
-        if (detail != null) {
+        try {
             cel = cdrDao.loadCelByUniqueid(call.uniqueid);
+        } catch (Exception ignored) {
+            // CEL optional; CDR steps still built below
         }
         List<ReadableTraceStepRow> steps = buildSteps(call, detail, cel);
         String displayReason = dispositionSummary(call, detail);

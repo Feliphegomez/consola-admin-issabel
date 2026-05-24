@@ -1,7 +1,5 @@
 package dn.demedallo.admin.service;
 
-
-
 import dn.demedallo.admin.db.AsteriskDb;
 
 import dn.demedallo.admin.db.CallCenterDb;
@@ -32,8 +30,6 @@ import dn.demedallo.admin.util.CallRecordingPathUtil;
 
 import dn.demedallo.admin.util.ShiftDatetimeRange;
 
-
-
 import java.nio.file.Files;
 
 import java.nio.file.Path;
@@ -50,8 +46,6 @@ import java.util.Optional;
 
 import java.util.Set;
 
-
-
 /**
 
  * Search call recordings from Issabel CDR and/or call_center {@code call_recording}.
@@ -59,8 +53,6 @@ import java.util.Set;
  */
 
 public final class CallRecordingService {
-
-
 
     public enum RecordingSource {
 
@@ -75,8 +67,6 @@ public final class CallRecordingService {
         BOTH
 
     }
-
-
 
     private final boolean dbEnabled;
 
@@ -93,8 +83,6 @@ public final class CallRecordingService {
     private final AdminLogSettings logSettings;
 
     private final String sshHost;
-
-
 
     public CallRecordingService(AdminDbSettings dbSettings, String eccpHost) {
 
@@ -127,15 +115,11 @@ public final class CallRecordingService {
 
     }
 
-
-
     public boolean isDbEnabled() {
 
         return dbEnabled;
 
     }
-
-
 
     public boolean isSshReady() {
 
@@ -143,15 +127,11 @@ public final class CallRecordingService {
 
     }
 
-
-
     public String normalizePhone(String input) {
 
         return PhoneTraceSearchDao.normalizePhoneQuery(input);
 
     }
-
-
 
     public List<CallWithRecordingsRow> search(String phoneInput, ShiftDatetimeRange range,
 
@@ -169,13 +149,9 @@ public final class CallRecordingService {
 
         RecordingSource src = source == null ? RecordingSource.CDR : source;
 
-
-
         List<CallWithRecordingsRow> out = new ArrayList<>();
 
         Set<String> seen = new LinkedHashSet<>();
-
-
 
         if (src == RecordingSource.CDR || src == RecordingSource.BOTH) {
 
@@ -229,8 +205,6 @@ public final class CallRecordingService {
 
     }
 
-
-
     public List<CallRecordingFileRow> listFiles(PhoneTraceCallRow call) throws Exception {
 
         if (call == null) {
@@ -265,8 +239,6 @@ public final class CallRecordingService {
 
     }
 
-
-
     public PhoneTraceDetail loadTrace(PhoneTraceCallRow call) throws Exception {
         if (call == null) {
             return traceService.loadTraceDetail(null);
@@ -288,8 +260,6 @@ public final class CallRecordingService {
                 call.statusLabel,
                 new CallProblemDiagnosis(CallProblemDiagnosis.Origin.UNKNOWN, "CDR", "", List.of()));
     }
-
-
 
     public String resolveRemotePath(CallRecordingFileRow row) throws Exception {
 
@@ -315,8 +285,6 @@ public final class CallRecordingService {
 
     }
 
-
-
     public Path downloadToTemp(CallRecordingFileRow row) throws Exception {
 
         String remote = resolveRemotePath(row);
@@ -339,8 +307,6 @@ public final class CallRecordingService {
 
     }
 
-
-
     public void downloadTo(CallRecordingFileRow row, Path target) throws Exception {
 
         String remote = resolveRemotePath(row);
@@ -350,8 +316,6 @@ public final class CallRecordingService {
                 logSettings.sshPassword, remote, target);
 
     }
-
-
 
     public void deleteRecording(PhoneTraceCallRow call, CallRecordingFileRow row) throws Exception {
 
@@ -393,8 +357,6 @@ public final class CallRecordingService {
 
     }
 
-
-
     private void requireSsh() {
 
         if (!isSshReady()) {
@@ -408,5 +370,3 @@ public final class CallRecordingService {
     }
 
 }
-
-

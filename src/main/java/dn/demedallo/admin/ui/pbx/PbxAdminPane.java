@@ -4,6 +4,7 @@ import dn.demedallo.admin.model.pbx.PbxForms;
 import dn.demedallo.admin.model.pbx.PbxRows;
 import dn.demedallo.admin.service.PbxAdminService;
 import dn.demedallo.admin.service.PbxReloadService;
+import dn.demedallo.admin.ui.nav.WorkspaceNavigation;
 import dn.demedallo.admin.ui.util.TableViewUtil;
 import dn.demedallo.admin.util.AdminDbSettings;
 import javafx.application.Platform;
@@ -76,6 +77,11 @@ public final class PbxAdminPane extends BorderPane implements AutoCloseable {
     private volatile int loadGeneration;
     private volatile List<PbxRows.TimeGroupRow> cachedTimeGroups = List.of();
     private volatile List<PbxRows.RecordingRow> cachedRecordings = List.of();
+    private WorkspaceNavigation navigation;
+    private String mainTabLabel;
+    private Runnable selectMainTab;
+    private String sectionLabel;
+    private Runnable selectSection;
 
     /** Single-arg ctor for older builds; prefer {@link #PbxAdminPane(AdminDbSettings, String)}. */
     public PbxAdminPane(AdminDbSettings dbSettings) {
@@ -95,8 +101,8 @@ public final class PbxAdminPane extends BorderPane implements AutoCloseable {
         buildTables();
 
         sections.getTabs().addAll(
-                tab("Grupos de horario", timeGroupsSection()),
-                tab("Condiciones horarias", crudSection(timeConditionsTable, "condiciones-horarias",
+                tab("Horarios", timeGroupsSection()),
+                tab("Cond. horarias", crudSection(timeConditionsTable, "condiciones-horarias",
                         this::newTimeCondition, this::editTimeCondition, this::refreshTimeConditions)),
                 tab("Colas", crudSection(queuesTable, "colas",
                         this::newQueue, this::editQueue, this::refreshQueues)),
@@ -104,17 +110,18 @@ public final class PbxAdminPane extends BorderPane implements AutoCloseable {
                         this::newExtension, this::editExtension, this::refreshExtensions)),
                 tab("Troncales", crudSection(trunksTable, "troncales",
                         this::newTrunk, this::editTrunk, this::refreshTrunks)),
-                tab("Rutas entrantes", crudSection(inboundTable, "rutas-entrantes",
+                tab("Entrantes", crudSection(inboundTable, "rutas-entrantes",
                         this::newInbound, this::editInbound, this::refreshInbound)),
-                tab("Rutas salientes", crudSection(outboundTable, "rutas-salientes",
+                tab("Salientes", crudSection(outboundTable, "rutas-salientes",
                         this::newOutbound, this::editOutbound, this::refreshOutbound)),
                 tab("IVR", ivrSection()),
-                tab("Música en espera", crudSectionDeletable(mohTable, "moh",
+                tab("MOH", crudSectionDeletable(mohTable, "moh",
                         this::newMoh, null, this::refreshMoh, this::deleteMoh)),
                 tab("Anuncios", crudSectionDeletable(announcementsTable, "anuncios",
                         this::newAnnouncement, this::editAnnouncement, this::refreshAnnouncements,
                         this::deleteAnnouncement)));
         sections.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        sections.getSelectionModel().selectedItemProperty().addListener((o, old, tab) -> publishPbxTrail(tab));
 
         Button refresh = new Button("Actualizar todo");
         refresh.getStyleClass().add("monitor-btn");
@@ -137,6 +144,23 @@ public final class PbxAdminPane extends BorderPane implements AutoCloseable {
                     + ". Alta/edición en todas las entidades; eliminar solo en MOH y Anuncios.");
             refreshAll();
         }
+    }
+
+    public void attachNavigation(WorkspaceNavigation nav, String mainTabLabel, Runnable selectMainTab,
+            String sectionLabel, Runnable selectSection) {
+        this.navigation = nav;
+        this.mainTabLabel = mainTabLabel;
+        this.selectMainTab = selectMainTab;
+        this.sectionLabel = sectionLabel;
+        this.selectSection = selectSection;
+        publishPbxTrail(sections.getSelectionModel().getSelectedItem());
+    }
+
+    private void publishPbxTrail(Tab tab) {
+        if (navigation == null || tab == null || mainTabLabel == null) {
+            return;
+        }
+        navigation.setMainSectionSub(mainTabLabel, selectMainTab, sectionLabel, selectSection, tab.getText());
     }
 
     private Tab tab(String title, Parent content) {

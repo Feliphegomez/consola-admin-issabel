@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Loads CDR rows to estimate concurrent channel usage (Issabel has no {@code music}-style channel stats table).
+ * Loads CDR rows to estimate concurrent channel usage from {@code asteriskcdrdb.cdr}.
  */
 public final class ChannelUsageDao {
 

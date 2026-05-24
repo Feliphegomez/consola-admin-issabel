@@ -61,21 +61,20 @@ Al abrir la aplicación aparece la ventana de conexión, dividida en **dos colum
 
 ## 2. Vista general del workspace
 
-Tras conectar, la ventana principal muestra **siete pestañas** (no se pueden cerrar):
+Tras conectar, la ventana principal muestra **seis pestañas** (no se pueden cerrar). Pase el ratón sobre cada pestaña para ver una breve descripción.
 
 | Pestaña | Resumen |
 |---------|---------|
-| **Dashboard** | Vista resumida tipo mural: agentes, colas y llamadas vivas. |
-| **Monitoreo** | Tablas detalladas, paneles de campaña y fallidas/cortas. |
-| **Gestión Reintentos** | Reprogramar llamadas salientes fallidas para el dialer. |
-| **Buscar trazabilidad** | Buscar por teléfono todas las llamadas entrantes/salientes y su historial paso a paso. |
-| **Datos campañas** | Buscar llamadas y ver formularios capturados. |
-| **Informes** | Equivalente a módulos de informes de la consola web Issabel. |
-| **Logs Issabel** | Seguimiento de logs del dialer, Asterisk y de la propia app. |
+| **Inicio** | Resumen en vivo: agentes, colas y llamadas. |
+| **Monitoreo** | Tablas y paneles de campaña en tiempo real. |
+| **Llamadas** | Menú lateral: **Trazabilidad** (por teléfono), **Grabaciones** (audio + historial), **Reintentos** (reprogramar fallidas). |
+| **Informes** | Catálogo lateral: informes en vivo (●) e históricos (○), incluido **Uso de canales**. |
+| **Campañas** | Buscar llamadas y ver formularios capturados. |
+| **Sistema** | Menú lateral: **Salud** del servidor, **PBX / Asterisk**, **Logs**. |
 
 El título de la ventana incluye el host al que está conectado.
 
-**Actualización automática:** Dashboard y Monitoreo (y paneles en vivo) se refrescan cada **5 segundos**. Use **Actualizar** para forzar una lectura inmediata.
+**Actualización automática:** Inicio y Monitoreo (y paneles en vivo) se refrescan cada **5 segundos**. Use **Actualizar** para forzar una lectura inmediata.
 
 ---
 

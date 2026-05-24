@@ -1,0 +1,31 @@
+---
+description: UX, navigation and tables for native-admin-console (supervisor app)
+globs:
+  - "**/native-admin-console/**"
+alwaysApply: false
+---
+
+# Native Admin Console — UX rules
+
+## Navigation
+
+- Top **Ubicación** bar (`WorkspaceNavigation`) must reflect tab → section → sub-tab; update trail when selection changes.
+- Max **6 top tabs**: Inicio, Monitoreo, Llamadas, Informes, Campañas, Sistema.
+- Group related screens with `NavSectionPane` (sidebar), not new top tabs.
+- New call/trace features → **Llamadas**. New reports/CDR → **Informes** (`ReportId`). Server/PBX/logs → **Sistema**.
+
+## Labels
+
+- Short Spanish for tabs and menu items; tooltips explain in one line.
+- Code and logs in English; visible UI in Spanish.
+
+## Tables
+
+- After columns: `TableViewUtil.applyStandardColumns(table, fillWidth)`.
+- Panel tables: `wrapInScrollPane(..., true)`; wide reports: `false`.
+
+## Do not
+
+- Duplicate features across top tabs (e.g. channel usage only under Informes).
+- Add debug file logging to the UI thread.
+- Use `asterisk.music` or CEL column `extra` (use `eventextra` with fallback).

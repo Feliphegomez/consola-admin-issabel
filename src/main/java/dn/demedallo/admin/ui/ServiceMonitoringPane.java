@@ -28,7 +28,6 @@ import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
@@ -38,9 +37,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -207,21 +203,6 @@ public final class ServiceMonitoringPane extends BorderPane implements AutoClose
     private void configureTable() {
         table.setPlaceholder(new Label("Recopilando estado de servicios…"));
         table.getStyleClass().addAll("health-table", "monitor-table");
-        // #region agent log
-        table.setRowFactory(tv -> {
-            TableRow<ServiceCheck> row = new TableRow<>();
-            row.hoverProperty().addListener((obs, was, hover) -> {
-                if (!hover || row.isEmpty()) {
-                    return;
-                }
-                agentDebugLog("H1", "health row hover",
-                        "{\"hasMonitorTable\":" + table.getStyleClass().contains("monitor-table")
-                                + ",\"hasHealthTable\":" + table.getStyleClass().contains("health-table")
-                                + ",\"columnCount\":" + table.getColumns().size() + "}");
-            });
-            return row;
-        });
-        // #endregion
 
         TableColumn<ServiceCheck, String> catCol = new TableColumn<>("Área");
         catCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().category()));
@@ -430,19 +411,6 @@ public final class ServiceMonitoringPane extends BorderPane implements AutoClose
         }
         detailArea.setText(sb.toString());
     }
-
-    // #region agent log
-    private static void agentDebugLog(String hypothesisId, String message, String dataJson) {
-        try {
-            Path log = Path.of(System.getProperty("user.dir"), "debug-38d6ea.log");
-            String line = "{\"sessionId\":\"38d6ea\",\"hypothesisId\":\"" + hypothesisId
-                    + "\",\"location\":\"ServiceMonitoringPane\",\"message\":\"" + message
-                    + "\",\"data\":" + dataJson + ",\"timestamp\":" + System.currentTimeMillis() + "}\n";
-            Files.writeString(log, line, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-        } catch (Exception ignored) {
-        }
-    }
-    // #endregion
 
     private static String truncate(String s, int max) {
         if (s == null) {

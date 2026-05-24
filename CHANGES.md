@@ -9,7 +9,30 @@
 ### Uso de canales
 
 - Pestaña **Uso de canales**: gráfico y tabla de canales activos (estimados desde `asteriskcdrdb.cdr`) con filtros de fecha, hora, intervalo (15/30/60 min) y tecnología (Total, SIP/PJSIP, DAHDI, IAX, Local, H323).
+- **Buscar días ≥ umbral**: lista cada día del rango cuyo pico cumple el filtro (ej. Total ≥ 20 canales), con hora del pico y picos por tecnología; gráfico por día; doble clic abre el detalle horario (máx. 90 días).
 - Exportación CSV de la tabla; requiere **Base CDR** configurada en el login.
+
+### Barra de navegación superior
+
+- Panel **Ubicación:** con ruta clicable (migas): pestaña › sección › subpestaña (ej. `Sistema › PBX / Asterisk › Colas`).
+- Clic en un segmento anterior cambia a esa vista sin perder el workspace.
+
+### Navegación y tablas (UX)
+
+- **6 pestañas** principales: Inicio, Monitoreo, Llamadas, Informes, Campañas, Sistema (con tooltips).
+- **Llamadas**: menú lateral — Trazabilidad, Grabaciones, Reintentos.
+- **Sistema**: menú lateral — Salud, PBX, Logs.
+- **Informes**: catálogo con ● vivo / ○ histórico; **Uso de canales** integrado en el catálogo.
+- Tablas de panel: `TableViewUtil.applyStandardColumns` + ancho al viewport (`fillViewportWidth`).
+- PBX: etiquetas de subpestañas más cortas (Horarios, Entrantes, MOH, etc.).
+- `AGENTS.md` y regla Cursor `.cursor/rules/native-admin-console-ux.mdc` para mantener coherencia.
+
+### Limpieza / correcciones
+
+- Pestaña **Uso de canales** registrada en el `TabPane` del workspace (antes se instanciaba pero no se mostraba).
+- Eliminada instrumentación de depuración en **Monitoreo de servicios** (`debug-38d6ea.log`).
+- Formato de `CallRecordingService.java` (líneas en blanco duplicadas).
+- **Grabaciones / CDR**: consulta CEL compatible con Issabel (`eventextra` en lugar de `extra` inexistente); si CEL falla, trazabilidad desde fila `cdr`.
 
 ### Monitoreo de servicios
 

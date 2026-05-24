@@ -113,9 +113,9 @@ public final class CallRecordingsPane extends BorderPane implements AutoCloseabl
         buildCallsColumns();
         buildFilesColumns();
         buildTraceColumns();
-        TableViewUtil.prepare(callsTable);
-        TableViewUtil.prepare(filesTable);
-        TableViewUtil.prepare(traceTable);
+        TableViewUtil.applyStandardColumns(callsTable, true);
+        TableViewUtil.applyStandardColumns(filesTable, true);
+        TableViewUtil.applyStandardColumns(traceTable, true);
 
         callsTable.setPlaceholder(new Label("Busque llamadas con grabación en el rango indicado"));
         filesTable.setPlaceholder(new Label("Seleccione una llamada para ver sus archivos"));
@@ -154,12 +154,12 @@ public final class CallRecordingsPane extends BorderPane implements AutoCloseabl
         VBox filesBox = new VBox(6,
                 sectionTitle("Archivos de grabación"),
                 fileActions,
-                TableViewUtil.wrapInScrollPane(filesTable, "grabaciones-archivos"));
+                TableViewUtil.wrapInScrollPane(filesTable, "grabaciones-archivos", true));
         VBox.setVgrow(filesTable, Priority.ALWAYS);
 
         VBox traceTableBox = new VBox(6,
                 sectionTitle("Trazabilidad (paso a paso)"),
-                TableViewUtil.wrapInScrollPane(traceTable, "grabaciones-trazabilidad"));
+                TableViewUtil.wrapInScrollPane(traceTable, "grabaciones-trazabilidad", true));
         VBox.setVgrow(traceTable, Priority.ALWAYS);
 
         SplitPane traceSplit = new SplitPane(traceTableBox, mermaidPane);
@@ -171,7 +171,7 @@ public final class CallRecordingsPane extends BorderPane implements AutoCloseabl
 
         VBox callsBox = new VBox(6,
                 sectionTitle("Llamadas con grabación"),
-                TableViewUtil.wrapInScrollPane(callsTable, "grabaciones-llamadas"));
+                TableViewUtil.wrapInScrollPane(callsTable, "grabaciones-llamadas", true));
         VBox.setVgrow(callsTable, Priority.ALWAYS);
 
         SplitPane mainSplit = new SplitPane(callsBox, bottomSplit);

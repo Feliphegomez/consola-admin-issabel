@@ -27,6 +27,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import dn.demedallo.admin.ui.nav.WorkspaceNavigation;
 import dn.demedallo.admin.ui.report.FailedShortCallsPane;
 import dn.demedallo.admin.ui.report.IncomingCampaignsPanelPane;
 import dn.demedallo.admin.ui.report.OutgoingCampaignsPanelPane;
@@ -78,6 +79,9 @@ public final class AdminMonitorPane extends BorderPane {
     private final Label summaryOnCall = new Label("0");
     private final Label summaryPaused = new Label("0");
     private final Label summaryQueues = new Label("0");
+    private TabPane monitorTabs;
+    private WorkspaceNavigation navigation;
+    private Runnable selectMainTab;
     private final Label summaryActiveCalls = new Label("0");
     private final ComboBox<String> queueFilter = new ComboBox<>();
     private volatile boolean rebuildingQueueFilter;
@@ -129,9 +133,9 @@ public final class AdminMonitorPane extends BorderPane {
         counters.setAlignment(Pos.CENTER_LEFT);
         counters.getStyleClass().add("monitor-counters");
 
-        TabPane tabs = new TabPane();
-        tabs.getStyleClass().add("monitor-tabs");
-        tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        monitorTabs = new TabPane();
+        monitorTabs.getStyleClass().add("monitor-tabs");
+        monitorTabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
 
         incomingCampaignPanel = new IncomingCampaignsPanelPane(client, dbSettings);
         outgoingCampaignPanel = new OutgoingCampaignsPanelPane(client, dbSettings);
@@ -144,12 +148,12 @@ public final class AdminMonitorPane extends BorderPane {
         Tab tabCalls = new Tab("Llamadas activas", wrapMonitorTable(buildActiveCallTable(), "llamadas-activas"));
         Tab tabCampaignPanels = new Tab("Paneles campaña", campaignPanels);
         Tab tabFailedShort = new Tab("Fallidas y cortas", failedShortCallsPane);
-        tabs.getTabs().addAll(tabAgents, tabQueues, tabCalls, tabCampaignPanels, tabFailedShort);
+        monitorTabs.getTabs().addAll(tabAgents, tabQueues, tabCalls, tabCampaignPanels, tabFailedShort);
 
         statusBar.getStyleClass().add("monitor-status");
         VBox top = new VBox(8, toolbar, counters);
         setTop(top);
-        setCenter(tabs);
+        setCenter(monitorTabs);
         setBottom(statusBar);
         BorderPane.setMargin(statusBar, new Insets(8, 0, 0, 0));
 
@@ -550,6 +554,24 @@ public final class AdminMonitorPane extends BorderPane {
         summaryPaused.setText(String.valueOf(paused));
         summaryQueues.setText(String.valueOf(snap.queues().size()));
         summaryActiveCalls.setText(String.valueOf(snap.activeCalls().size()));
+    }
+
+    public void bindNavigation(WorkspaceNavigation nav, String mainTabLabel, Runnable selectMainTab) {
+        this.navigation = nav;
+        this.selectMainTab = selectMainTab;
+        monitorTabs.getSelectionModel().selectedItemProperty().addListener((o, old, tab) -> publishMonitorTrail(tab));
+        publishMonitorTrail(monitorTabs.getSelectionModel().getSelectedItem());
+    }
+
+    public void refreshNavigationTrail() {
+        publishMonitorTrail(monitorTabs.getSelectionModel().getSelectedItem());
+    }
+
+    private void publishMonitorTrail(Tab tab) {
+        if (navigation == null || tab == null) {
+            return;
+        }
+        navigation.setMainAndSub("Monitoreo", selectMainTab, tab.getText());
     }
 
     public void shutdown() {

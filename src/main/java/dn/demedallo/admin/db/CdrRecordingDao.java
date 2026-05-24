@@ -57,34 +57,62 @@ public final class CdrRecordingDao {
         if (uniqueid == null || uniqueid.isBlank()) {
             return List.of();
         }
+        SQLException last = null;
+        for (String optionalCol : new String[]{"eventextra", "extra", "userfield", "peer"}) {
+            try {
+                return queryCel(uniqueid, optionalCol);
+            } catch (SQLException ex) {
+                if (isMissingTable(ex)) {
+                    return List.of();
+                }
+                if (isUnknownColumn(ex)) {
+                    last = ex;
+                    continue;
+                }
+                throw ex;
+            }
+        }
+        try {
+            return queryCel(uniqueid, null);
+        } catch (SQLException ex) {
+            if (isMissingTable(ex) || isUnknownColumn(ex)) {
+                return List.of();
+            }
+            if (last != null) {
+                return List.of();
+            }
+            throw ex;
+        }
+    }
+
+    private List<CelEventRow> queryCel(String uniqueid, String optionalExtraColumn) throws SQLException {
+        String extraSelect = optionalExtraColumn == null
+                ? ""
+                : ", " + optionalExtraColumn + " AS cel_extra";
         String sql = """
-                SELECT eventtype, eventtime, channame, appname, appdata, extra
+                SELECT eventtype, eventtime, channame, appname, appdata%s
                 FROM cel
                 WHERE uniqueid = ?
                 ORDER BY eventtime
                 LIMIT 500
-                """;
+                """.formatted(extraSelect);
         try (Connection c = db.openCdr();
              PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, uniqueid.trim());
             try (ResultSet rs = ps.executeQuery()) {
                 List<CelEventRow> rows = new ArrayList<>();
                 while (rs.next()) {
+                    String extra = optionalExtraColumn == null ? "" : str(rs, "cel_extra");
                     rows.add(new CelEventRow(
                             str(rs, "eventtype"),
                             formatTs(rs.getTimestamp("eventtime")),
                             str(rs, "channame"),
                             str(rs, "appname"),
                             str(rs, "appdata"),
-                            str(rs, "extra")));
+                            extra));
                 }
                 return rows;
             }
-        } catch (SQLException ex) {
-            if (isMissingTable(ex)) {
-                return List.of();
-            }
-            throw ex;
         }
     }
 
@@ -203,6 +231,11 @@ public final class CdrRecordingDao {
     private static boolean isMissingTable(SQLException ex) {
         String msg = ex.getMessage();
         return msg != null && (msg.contains("doesn't exist") || msg.contains("Unknown table"));
+    }
+
+    private static boolean isUnknownColumn(SQLException ex) {
+        String msg = ex.getMessage();
+        return msg != null && msg.contains("Unknown column");
     }
 
     private static String str(ResultSet rs, String column) throws SQLException {

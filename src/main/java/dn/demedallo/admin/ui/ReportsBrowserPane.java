@@ -2,6 +2,7 @@ package dn.demedallo.admin.ui;
 
 import dn.demedallo.admin.report.ReportContext;
 import dn.demedallo.admin.report.ReportId;
+import dn.demedallo.admin.ui.nav.WorkspaceNavigation;
 import dn.demedallo.admin.ui.report.AgentDetailReportPane;
 import dn.demedallo.admin.ui.report.FormDataViewerPane;
 import dn.demedallo.admin.ui.report.HistoricalReportPane;
@@ -9,6 +10,7 @@ import dn.demedallo.admin.ui.report.LiveCampaignMonitorPane;
 import dn.demedallo.admin.ui.report.LiveCampaignPanelPane;
 import dn.demedallo.admin.ui.report.LiveIncomingQueuesPane;
 import dn.demedallo.admin.ui.report.LiveOutgoingQueuesPane;
+import dn.demedallo.admin.ui.report.ChannelUsagePane;
 import dn.demedallo.admin.ui.report.LiveMonitorHintPane;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
@@ -41,6 +43,8 @@ public final class ReportsBrowserPane extends BorderPane {
     private final BorderPane contentShell;
     private final Button toggleNavBtn;
     private final SplitPane split;
+    private WorkspaceNavigation navigation;
+    private Runnable selectMainTab;
 
     public ReportsBrowserPane(ReportContext ctx) {
         this.ctx = ctx;
@@ -60,23 +64,31 @@ public final class ReportsBrowserPane extends BorderPane {
                     setGraphic(null);
                     return;
                 }
-                String kind = item.kind == ReportId.ReportKind.LIVE_ECCP ? "[vivo]" : "[BD]";
-                setText(kind + " " + item.title);
+                String prefix = item.kind == ReportId.ReportKind.LIVE_ECCP ? "● " : "○ ";
+                setText(prefix + item.title);
+                setTooltip(new javafx.scene.control.Tooltip(item.description));
             }
         });
         reportList.getSelectionModel().selectedItemProperty()
-                .addListener((o, old, selected) -> showReport(selected));
+                .addListener((o, old, selected) -> {
+                    showReport(selected);
+                    publishReportTrail(selected);
+                });
 
-        Label navTitle = new Label("Informes");
+        Label navTitle = new Label("Catálogo");
         navTitle.getStyleClass().add("report-nav-title");
+        Label navHint = new Label("● tiempo real  ○ histórico (MySQL/CDR)");
+        navHint.getStyleClass().add("section-nav-hint");
+        navHint.setWrapText(true);
+        VBox navHeader = new VBox(2, navTitle, navHint);
         navPane = new BorderPane();
-        navPane.setTop(navTitle);
+        navPane.setTop(navHeader);
         navPane.setCenter(reportList);
         navPane.getStyleClass().add("report-nav-pane");
         navPane.setMinWidth(NAV_MIN_WIDTH);
         navPane.setPrefWidth(NAV_PREF_WIDTH);
-        BorderPane.setAlignment(navTitle, Pos.CENTER_LEFT);
-        BorderPane.setMargin(navTitle, new Insets(0, 4, 6, 4));
+        BorderPane.setAlignment(navHeader, Pos.CENTER_LEFT);
+        BorderPane.setMargin(navHeader, new Insets(0, 4, 6, 4));
         BorderPane.setMargin(reportList, new Insets(0, 0, 0, 0));
 
         Label placeholder = new Label("Seleccione un informe de la lista.");
@@ -167,6 +179,7 @@ public final class ReportsBrowserPane extends BorderPane {
             case CAMPAIGN_MONITORING -> track(new LiveCampaignMonitorPane(ctx.eccp));
             case AGENT_DETAIL_REPORT -> track(new AgentDetailReportPane(ctx.dbReports, ctx.dbSettings.isConfigured()));
             case FORM_DATA_VIEWER -> track(new FormDataViewerPane(ctx.dbReports, ctx.dbSettings.isConfigured()));
+            case CHANNEL_USAGE -> track(new ChannelUsagePane(ctx.dbSettings));
             default -> track(new HistoricalReportPane(id, ctx.dbReports, ctx.dbSettings.isConfigured()));
         };
     }
@@ -186,6 +199,23 @@ public final class ReportsBrowserPane extends BorderPane {
             }
         }
         openPanes.clear();
+    }
+
+    public void bindNavigation(WorkspaceNavigation nav, String mainTabLabel, Runnable selectMainTab) {
+        this.navigation = nav;
+        this.selectMainTab = selectMainTab;
+        publishReportTrail(reportList.getSelectionModel().getSelectedItem());
+    }
+
+    public void refreshNavigationTrail() {
+        publishReportTrail(reportList.getSelectionModel().getSelectedItem());
+    }
+
+    private void publishReportTrail(ReportId id) {
+        if (navigation == null || id == null) {
+            return;
+        }
+        navigation.setMainAndSub("Informes", selectMainTab, id.title);
     }
 
     public void shutdown() {

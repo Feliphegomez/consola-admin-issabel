@@ -40,7 +40,9 @@ public enum ReportId {
     AGENT_DETAIL_REPORT("agent_detail_report", "Detalle de agentes", ReportKind.HISTORICAL_DB,
             "Resumen por agente: sesiones, pausas, llamadas entrantes y salientes"),
     FORM_DATA_VIEWER("form_data_viewer", "Datos de formularios", ReportKind.HISTORICAL_DB,
-            "Valores capturados en formularios (entrantes y salientes)");
+            "Valores capturados en formularios (entrantes y salientes)"),
+    CHANNEL_USAGE("channel_usage", "Uso de canales", ReportKind.HISTORICAL_DB,
+            "Picos de canales desde CDR Issabel (requiere base CDR)");
 
     public enum ReportKind {
         LIVE_ECCP,
